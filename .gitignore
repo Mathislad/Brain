@@ -30,3 +30,11 @@ next-env.d.ts
 # misc
 .DS_Store
 /.vercel
+node_modules/
+.next/
+.env
+.env.*
+!.env.example
+.pnpm-store/
+.vercel/
+.DS_Store
