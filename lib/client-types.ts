@@ -1,10 +1,16 @@
-import type { Prospect, ClientLink, Payment } from "@/generated/prisma/client";
+import type {
+  Prospect,
+  ClientLink,
+  Payment,
+  Document,
+} from "@/generated/prisma/client";
 
 export type ClientLinkCategory = "PROJECT" | "FILE" | "WEB" | "CONTACT";
 
 export type ClientWithLinks = Prospect & {
   links: ClientLink[];
   payments: Payment[];
+  documents: Document[];
 };
 
 export type BillingInput = {

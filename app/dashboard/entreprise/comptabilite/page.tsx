@@ -3,12 +3,16 @@ import { redirect } from "next/navigation";
 import { AccountingTool } from "@/components/dashboard/accounting-tool";
 import { getCurrentUser } from "@/lib/session";
 import { getClientPaymentsForAccounting } from "@/lib/clients-db";
+import { getAccountingEntries } from "@/lib/accounting-db";
 
 export default async function ComptabilitePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const clientPayments = await getClientPaymentsForAccounting(user.id);
+  const [entries, clientPayments] = await Promise.all([
+    getAccountingEntries(user.id),
+    getClientPaymentsForAccounting(user.id),
+  ]);
 
   return (
     <div className="px-8 py-10">
@@ -25,7 +29,7 @@ export default async function ComptabilitePage() {
         </p>
       </div>
 
-      <AccountingTool clientPayments={clientPayments} />
+      <AccountingTool entries={entries} clientPayments={clientPayments} />
     </div>
   );
 }

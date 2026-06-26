@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -20,6 +20,33 @@ const STATUS_OPTIONS: Array<{ id: ProspectStatus; label: string }> = [
 
 const ALL_STATUSES = "__all__";
 const ALL_NICHES = "__all__";
+
+// Liste rouge « ne pas rappeler » — même source que le CRM (localStorage).
+const DO_NOT_CALL_STORAGE_KEY = "brain.crm.doNotCall.v1";
+
+function normalizePhone(value: string | null | undefined) {
+  const digits = (value ?? "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("0033")) return `0${digits.slice(4)}`;
+  if (digits.startsWith("33") && digits.length === 11) return `0${digits.slice(2)}`;
+  return digits;
+}
+
+function loadDoNotCallSet(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DO_NOT_CALL_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as Array<{ phone?: string; normalizedPhone?: string }>;
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(
+      parsed
+        .map((e) => normalizePhone(e.normalizedPhone || e.phone))
+        .filter(Boolean),
+    );
+  } catch {
+    return new Set();
+  }
+}
 
 type QuickFields = {
   derniereAction: string;
@@ -78,7 +105,12 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
     initialQuickFields(items[0] ?? null),
   );
   const [error, setError] = useState<string | null>(null);
+  const [doNotCallSet, setDoNotCallSet] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setDoNotCallSet(loadDoNotCallSet());
+  }, []);
 
   const niches = useMemo(
     () =>
@@ -123,6 +155,9 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
     .map((id) => items.find((prospect) => prospect.id === id))
     .filter((prospect): prospect is Prospect => Boolean(prospect));
   const currentProspect = sessionProspects[currentIndex] ?? null;
+  const currentIsDoNotCall = currentProspect
+    ? doNotCallSet.has(normalizePhone(currentProspect.telephone))
+    : false;
   const sessionStarted = sessionIds.length > 0;
   const progressCurrent = sessionStarted ? Math.min(currentIndex + 1, sessionProspects.length) : 0;
 
@@ -373,6 +408,15 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
                   </a>
                 </div>
               </div>
+
+              {currentIsDoNotCall && (
+                <div className="mt-5 flex items-center gap-2 rounded-lg border border-red-900/50 bg-red-950/40 px-4 py-2.5">
+                  <span aria-hidden>⛔</span>
+                  <p className="text-sm font-medium text-red-400">
+                    Liste rouge — ne pas rappeler ce numéro.
+                  </p>
+                </div>
+              )}
 
               <div className="grid gap-5 py-5 md:grid-cols-3">
                 <TextValue label="Téléphone" value={currentProspect.telephone} />

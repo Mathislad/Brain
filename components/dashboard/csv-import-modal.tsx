@@ -377,8 +377,15 @@ export function CsvImportModal({ onClose }: Props) {
                           <input
                             type="checkbox"
                             checked={checked}
-                            onChange={() => {}}
                             onClick={(e) => e.stopPropagation()}
+                            onChange={() =>
+                              setSelected((prev) => {
+                                const next = new Set(prev);
+                                if (checked) next.delete(i);
+                                else next.add(i);
+                                return next;
+                              })
+                            }
                             className="h-4 w-4 rounded border-zinc-600 accent-white"
                           />
                         </td>

@@ -32,11 +32,17 @@ export function StatusBadge({ recordId, status: initial }: Props) {
   const [isPending, startTransition] = useTransition();
 
   function cycle() {
+    const prev = status;
     const next = CYCLE[(CYCLE.indexOf(status) + 1) % CYCLE.length];
     setStatus(next);
     startTransition(async () => {
-      await updateProspectStatusAction(recordId, next);
-      router.refresh();
+      try {
+        await updateProspectStatusAction(recordId, next);
+        router.refresh();
+      } catch {
+        // rollback optimiste en cas d'échec (rate-limit, réseau…)
+        setStatus(prev);
+      }
     });
   }
 

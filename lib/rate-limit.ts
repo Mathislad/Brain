@@ -40,3 +40,19 @@ export function checkRateLimit(
   bucket.count += 1;
   return { ok: true, retryAfterSeconds: 0 };
 }
+
+/**
+ * Applique une limite et lève une erreur si dépassée.
+ * À utiliser dans les Server Actions (le message remonte au client).
+ */
+export function enforceRateLimit(
+  key: string,
+  opts: { limit: number; windowMs: number },
+): void {
+  const result = checkRateLimit(key, opts);
+  if (!result.ok) {
+    throw new Error(
+      `Trop de requêtes. Réessayez dans ${result.retryAfterSeconds} secondes.`,
+    );
+  }
+}

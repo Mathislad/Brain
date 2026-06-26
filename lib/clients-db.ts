@@ -43,6 +43,7 @@ export async function getClientsWithLinks(userId: string) {
     include: {
       links: { orderBy: { createdAt: "asc" } },
       payments: { orderBy: { paidAt: "desc" } },
+      documents: { orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }] },
     },
   });
 }

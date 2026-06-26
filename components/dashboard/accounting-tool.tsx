@@ -1,20 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
+import {
+  createAccountingEntryAction,
+  deleteAccountingEntryAction,
+  migrateAccountingEntriesAction,
+} from "@/app/actions/accounting";
+import type { AccountingEntryItem, AccountingType } from "@/lib/accounting-types";
 import type { SyncedClientPayment } from "@/lib/client-types";
 
-type AccountingType = "income" | "expense";
 type EntrySource = "manual" | "client";
 
-interface AccountingEntry {
+interface Row {
   id: string;
   type: AccountingType;
   title: string;
-  amount: number;
-  date: string;
+  amount: number; // euros
+  date: string; // YYYY-MM-DD
   note: string;
-  createdAt: string;
   source: EntrySource;
 }
 
@@ -23,22 +28,13 @@ interface BalanceReport {
   income: number;
   expenses: number;
   profit: number;
-  entriesCount: number;
   incomeCount: number;
   expenseCount: number;
-  biggestIncome: AccountingEntry | null;
-  biggestExpense: AccountingEntry | null;
+  biggestIncome: Row | null;
+  biggestExpense: Row | null;
 }
 
-const STORAGE_KEY = "brain.accounting.entries.v1";
-
-function createId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
+const LEGACY_STORAGE_KEY = "brain.accounting.entries.v1";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("fr-FR", {
@@ -49,7 +45,6 @@ function formatCurrency(value: number) {
 
 function formatDate(value: string) {
   if (!value) return "—";
-
   return new Intl.DateTimeFormat("fr-FR", {
     day: "2-digit",
     month: "short",
@@ -58,49 +53,24 @@ function formatDate(value: string) {
 }
 
 function todayInputValue() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+  return new Date().toISOString().slice(0, 10);
 }
 
-function loadEntries(): AccountingEntry[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-
-    const parsed = JSON.parse(raw) as AccountingEntry[];
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed
-      .map((entry) => ({
-        ...entry,
-        amount: Number(entry.amount),
-        note: entry.note ?? "",
-        source: "manual" as const,
-      }))
-      .filter((entry) => entry.id && entry.title && Number.isFinite(entry.amount));
-  } catch {
-    return [];
-  }
-}
-
-function buildThirtyDayReport(entries: AccountingEntry[]): BalanceReport {
-  const now = new Date();
-  const start = new Date(now);
-  start.setDate(now.getDate() - 30);
+function buildThirtyDayReport(rows: Row[]): BalanceReport {
+  const start = new Date();
+  start.setDate(start.getDate() - 30);
   start.setHours(0, 0, 0, 0);
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
 
-  const recentEntries = entries.filter((entry) => {
-    const date = new Date(`${entry.date}T12:00:00`);
-    return date >= start && date <= now;
+  const recent = rows.filter((r) => {
+    const d = new Date(`${r.date}T12:00:00`);
+    return d >= start && d <= end;
   });
-  const incomeEntries = recentEntries.filter((entry) => entry.type === "income");
-  const expenseEntries = recentEntries.filter((entry) => entry.type === "expense");
-  const income = incomeEntries.reduce((total, entry) => total + entry.amount, 0);
-  const expenses = expenseEntries.reduce((total, entry) => total + entry.amount, 0);
+  const incomeEntries = recent.filter((r) => r.type === "income");
+  const expenseEntries = recent.filter((r) => r.type === "expense");
+  const income = incomeEntries.reduce((t, r) => t + r.amount, 0);
+  const expenses = expenseEntries.reduce((t, r) => t + r.amount, 0);
 
   return {
     generatedAt: new Intl.DateTimeFormat("fr-FR", {
@@ -109,52 +79,70 @@ function buildThirtyDayReport(entries: AccountingEntry[]): BalanceReport {
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    }).format(now),
+    }).format(new Date()),
     income,
     expenses,
     profit: income - expenses,
-    entriesCount: recentEntries.length,
     incomeCount: incomeEntries.length,
     expenseCount: expenseEntries.length,
-    biggestIncome:
-      incomeEntries.sort((a, b) => b.amount - a.amount)[0] ?? null,
-    biggestExpense:
-      expenseEntries.sort((a, b) => b.amount - a.amount)[0] ?? null,
+    biggestIncome: [...incomeEntries].sort((a, b) => b.amount - a.amount)[0] ?? null,
+    biggestExpense: [...expenseEntries].sort((a, b) => b.amount - a.amount)[0] ?? null,
   };
 }
 
 export function AccountingTool({
+  entries = [],
   clientPayments = [],
 }: {
+  entries?: AccountingEntryItem[];
   clientPayments?: SyncedClientPayment[];
 }) {
-  const [manualEntries, setManualEntries] = useState<AccountingEntry[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [type, setType] = useState<AccountingType>("income");
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(todayInputValue);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<BalanceReport | null>(null);
 
+  // Migration unique des anciennes écritures localStorage → DB
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setManualEntries(loadEntries());
-      setDate(todayInputValue());
-      setIsLoaded(true);
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
+    const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      const inputs = (Array.isArray(parsed) ? parsed : [])
+        .filter((e) => e?.title && Number.isFinite(Number(e.amount)) && Number(e.amount) > 0)
+        .map((e) => ({
+          type: e.type === "expense" ? ("expense" as const) : ("income" as const),
+          title: String(e.title),
+          amount: Math.round(Number(e.amount) * 100),
+          date: typeof e.date === "string" && e.date ? e.date : todayInputValue(),
+          note: e.note ? String(e.note) : null,
+        }));
+      if (inputs.length === 0) {
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        return;
+      }
+      startTransition(async () => {
+        await migrateAccountingEntriesAction(inputs);
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        router.refresh();
+      });
+    } catch {
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(manualEntries));
-  }, [manualEntries, isLoaded]);
+  const manualRows = useMemo<Row[]>(
+    () => entries.map((e) => ({ ...e, source: "manual" as const })),
+    [entries],
+  );
 
-  // Paiements clients → entrées synchronisées (lecture seule)
-  const syncedEntries = useMemo<AccountingEntry[]>(
+  const syncedRows = useMemo<Row[]>(
     () =>
       clientPayments.map((p) => ({
         id: `client:${p.id}`,
@@ -163,44 +151,23 @@ export function AccountingTool({
         amount: p.amount,
         date: p.date,
         note: p.label,
-        createdAt: p.date,
         source: "client" as const,
       })),
     [clientPayments],
   );
 
-  const entries = useMemo(
-    () => [...syncedEntries, ...manualEntries],
-    [syncedEntries, manualEntries],
-  );
+  const rows = useMemo(() => [...syncedRows, ...manualRows], [syncedRows, manualRows]);
 
   const totals = useMemo(() => {
-    const income = entries
-      .filter((entry) => entry.type === "income")
-      .reduce((total, entry) => total + entry.amount, 0);
-    const expenses = entries
-      .filter((entry) => entry.type === "expense")
-      .reduce((total, entry) => total + entry.amount, 0);
-    const clientIncome = syncedEntries.reduce(
-      (total, entry) => total + entry.amount,
-      0,
-    );
+    const income = rows.filter((r) => r.type === "income").reduce((t, r) => t + r.amount, 0);
+    const expenses = rows.filter((r) => r.type === "expense").reduce((t, r) => t + r.amount, 0);
+    const clientIncome = syncedRows.reduce((t, r) => t + r.amount, 0);
+    return { income, expenses, profit: income - expenses, clientIncome };
+  }, [rows, syncedRows]);
 
-    return {
-      income,
-      expenses,
-      profit: income - expenses,
-      clientIncome,
-    };
-  }, [entries, syncedEntries]);
-
-  const sortedEntries = useMemo(
-    () =>
-      [...entries].sort((a, b) => {
-        const dateCompare = b.date.localeCompare(a.date);
-        return dateCompare !== 0 ? dateCompare : b.createdAt.localeCompare(a.createdAt);
-      }),
-    [entries],
+  const sortedRows = useMemo(
+    () => [...rows].sort((a, b) => b.date.localeCompare(a.date)),
+    [rows],
   );
 
   function addEntry(event: React.FormEvent<HTMLFormElement>) {
@@ -208,54 +175,45 @@ export function AccountingTool({
     const cleanTitle = title.trim();
     const cleanAmount = Number(amount.replace(",", "."));
 
-    if (!cleanTitle) {
-      setError("Ajoutez un intitulé.");
-      return;
-    }
-    if (!Number.isFinite(cleanAmount) || cleanAmount <= 0) {
-      setError("Ajoutez un montant supérieur à zéro.");
-      return;
-    }
-    if (!date) {
-      setError("Ajoutez une date.");
-      return;
-    }
+    if (!cleanTitle) return setError("Ajoutez un intitulé.");
+    if (!Number.isFinite(cleanAmount) || cleanAmount <= 0)
+      return setError("Ajoutez un montant supérieur à zéro.");
+    if (!date) return setError("Ajoutez une date.");
 
-    const entry: AccountingEntry = {
-      id: createId(),
-      type,
-      title: cleanTitle,
-      amount: Math.round(cleanAmount * 100) / 100,
-      date,
-      note: note.trim(),
-      createdAt: new Date().toISOString(),
-      source: "manual",
-    };
-
-    setManualEntries((current) => [entry, ...current]);
-    setTitle("");
-    setAmount("");
-    setNote("");
     setError(null);
-    setReport(null);
+    startTransition(async () => {
+      const res = await createAccountingEntryAction({
+        type,
+        title: cleanTitle,
+        amount: Math.round(cleanAmount * 100),
+        date,
+        note: note.trim() || null,
+      });
+      if (!res.ok) {
+        setError(res.error ?? "Erreur");
+        return;
+      }
+      setTitle("");
+      setAmount("");
+      setNote("");
+      setReport(null);
+      router.refresh();
+    });
   }
 
   function removeEntry(id: string) {
-    setManualEntries((current) => current.filter((entry) => entry.id !== id));
-    setReport(null);
-  }
-
-  function generateReport() {
-    setReport(buildThirtyDayReport(entries));
+    startTransition(async () => {
+      await deleteAccountingEntryAction(id);
+      setReport(null);
+      router.refresh();
+    });
   }
 
   return (
     <div className="space-y-6">
       <section className="grid gap-3 md:grid-cols-3">
         <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/20 px-5 py-4">
-          <p className="text-xs uppercase tracking-widest text-zinc-600">
-            Entrées
-          </p>
+          <p className="text-xs uppercase tracking-widest text-zinc-600">Entrées</p>
           <p className="mt-2 text-2xl font-medium text-emerald-400">
             {formatCurrency(totals.income)}
           </p>
@@ -266,17 +224,13 @@ export function AccountingTool({
           )}
         </div>
         <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/20 px-5 py-4">
-          <p className="text-xs uppercase tracking-widest text-zinc-600">
-            Dépenses
-          </p>
+          <p className="text-xs uppercase tracking-widest text-zinc-600">Dépenses</p>
           <p className="mt-2 text-2xl font-medium text-red-400">
             {formatCurrency(totals.expenses)}
           </p>
         </div>
         <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/20 px-5 py-4">
-          <p className="text-xs uppercase tracking-widest text-zinc-600">
-            Bénéfice
-          </p>
+          <p className="text-xs uppercase tracking-widest text-zinc-600">Bénéfice</p>
           <p
             className={`mt-2 text-2xl font-medium ${
               totals.profit >= 0 ? "text-white" : "text-red-400"
@@ -291,46 +245,52 @@ export function AccountingTool({
         <form onSubmit={addEntry} className="grid gap-3 lg:grid-cols-[150px_1fr_150px_160px_auto]">
           <select
             value={type}
-            onChange={(event) => setType(event.target.value as AccountingType)}
-            className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white outline-none focus:border-zinc-600"
+            onChange={(e) => setType(e.target.value as AccountingType)}
+            disabled={isPending}
+            className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white outline-none focus:border-zinc-600 disabled:opacity-50"
           >
             <option value="income">Entrée</option>
             <option value="expense">Dépense</option>
           </select>
           <input
             value={title}
-            onChange={(event) => setTitle(event.target.value)}
+            onChange={(e) => setTitle(e.target.value)}
             placeholder="Intitulé"
-            className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-zinc-600"
+            disabled={isPending}
+            className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-zinc-600 disabled:opacity-50"
           />
           <input
             value={amount}
-            onChange={(event) => setAmount(event.target.value)}
+            onChange={(e) => setAmount(e.target.value)}
             inputMode="decimal"
-            placeholder="Montant"
-            className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-zinc-600"
+            placeholder="Montant (€)"
+            disabled={isPending}
+            className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-zinc-600 disabled:opacity-50"
           />
           <input
             type="date"
             value={date}
-            onChange={(event) => setDate(event.target.value)}
-            className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white outline-none focus:border-zinc-600"
+            onChange={(e) => setDate(e.target.value)}
+            disabled={isPending}
+            className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white outline-none focus:border-zinc-600 disabled:opacity-50"
           />
           <button
             type="submit"
-            className="h-10 rounded-lg bg-white px-4 text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-200"
+            disabled={isPending}
+            className="h-10 rounded-lg bg-white px-4 text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-200 disabled:opacity-50"
           >
-            Ajouter
+            {isPending ? "…" : "Ajouter"}
           </button>
           <input
             value={note}
-            onChange={(event) => setNote(event.target.value)}
+            onChange={(e) => setNote(e.target.value)}
             placeholder="Note optionnelle"
-            className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-zinc-600 lg:col-span-4"
+            disabled={isPending}
+            className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-zinc-600 disabled:opacity-50 lg:col-span-4"
           />
           <button
             type="button"
-            onClick={generateReport}
+            onClick={() => setReport(buildThirtyDayReport(rows))}
             className="h-10 rounded-lg border border-zinc-800 px-4 text-sm text-zinc-300 transition-colors hover:border-zinc-600 hover:text-white"
           >
             Générer bilan 30 jours
@@ -397,7 +357,7 @@ export function AccountingTool({
       )}
 
       <section className="overflow-x-auto rounded-xl border border-zinc-800/80">
-        {sortedEntries.length === 0 ? (
+        {sortedRows.length === 0 ? (
           <div className="py-16 text-center">
             <p className="text-sm text-zinc-500">
               Aucune ligne de comptabilité pour le moment.
@@ -418,7 +378,7 @@ export function AccountingTool({
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/40">
-              {sortedEntries.map((entry) => (
+              {sortedRows.map((entry) => (
                 <tr
                   key={entry.id}
                   className="bg-zinc-900/10 transition-colors hover:bg-zinc-800/20"
@@ -470,7 +430,8 @@ export function AccountingTool({
                       <button
                         type="button"
                         onClick={() => removeEntry(entry.id)}
-                        className="rounded px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-800 hover:text-red-400"
+                        disabled={isPending}
+                        className="rounded px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-800 hover:text-red-400 disabled:opacity-50"
                       >
                         Supprimer
                       </button>

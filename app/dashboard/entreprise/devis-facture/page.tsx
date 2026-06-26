@@ -1,10 +1,42 @@
 import { redirect } from "next/navigation";
 
+import { DocumentsManager } from "@/components/dashboard/documents-manager";
 import { getCurrentUser } from "@/lib/session";
+import { getDocuments } from "@/lib/documents-db";
+import { getProspects } from "@/lib/prospects-db";
+import type {
+  DocumentKind,
+  DocumentListItem,
+  DocumentStatus,
+  ProspectOption,
+} from "@/lib/document-templates";
 
 export default async function DevisFacturePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  const [docs, prospects] = await Promise.all([
+    getDocuments(user.id),
+    getProspects(user.id),
+  ]);
+
+  const documents: DocumentListItem[] = docs.map((d) => ({
+    id: d.id,
+    type: d.type as DocumentKind,
+    templateId: d.templateId,
+    reference: d.reference,
+    title: d.title,
+    status: d.status as DocumentStatus,
+    amount: d.amount,
+    issuedAt: new Date(d.issuedAt).toISOString().slice(0, 10),
+    clientId: d.prospect.id,
+    clientName: d.prospect.entreprise || d.prospect.nom,
+  }));
+
+  const prospectOptions: ProspectOption[] = prospects.map((p) => ({
+    id: p.id,
+    name: p.entreprise ? `${p.entreprise} — ${p.nom}` : p.nom,
+  }));
 
   return (
     <div className="px-8 py-10">
@@ -16,13 +48,11 @@ export default async function DevisFacturePage() {
           Devis &amp; facture
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Création et suivi des devis et factures.
+          Devis, factures et contrats — classés par client et par date.
         </p>
       </div>
 
-      <div className="rounded-xl border border-zinc-800/80 px-6 py-16 text-center">
-        <p className="text-sm text-zinc-500">Section en cours de construction.</p>
-      </div>
+      <DocumentsManager documents={documents} prospects={prospectOptions} />
     </div>
   );
 }

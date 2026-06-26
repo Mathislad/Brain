@@ -9,6 +9,9 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Migrations : connexion DIRECTE (port 5432). Sur Vercel, DATABASE_URL
+    // pointe sur le pooler (6543, transaction mode) qui ne supporte pas les
+    // migrations — on utilise donc DIRECT_URL si défini, sinon DATABASE_URL.
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });

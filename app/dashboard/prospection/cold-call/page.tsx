@@ -2,14 +2,20 @@ import { redirect } from "next/navigation";
 
 import { ColdCallSession } from "@/components/dashboard/cold-call-session";
 import { getCurrentUser } from "@/lib/session";
-import { getProspects } from "@/lib/prospects-db";
+import { getProspects, type Prospect } from "@/lib/prospects-db";
 
 export default async function ColdCallPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const all = await getProspects(user.id);
-  const prospects = all.filter((p) => p.telephone && p.telephone.trim() !== "");
+  let prospects: Prospect[] = [];
+  let dbError = false;
+  try {
+    const all = await getProspects(user.id);
+    prospects = all.filter((p) => p.telephone && p.telephone.trim() !== "");
+  } catch {
+    dbError = true;
+  }
 
   return (
     <div className="px-8 py-10">
@@ -20,13 +26,24 @@ export default async function ColdCallPage() {
         <h1 className="mt-1 text-2xl font-medium tracking-tight text-white">
           Cold Call
         </h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          {prospects.length} prospect{prospects.length !== 1 ? "s" : ""} avec
-          numéro
-        </p>
+        {!dbError && (
+          <p className="mt-1 text-sm text-zinc-500">
+            {prospects.length} prospect{prospects.length !== 1 ? "s" : ""} avec
+            numéro
+          </p>
+        )}
       </div>
 
-      {prospects.length === 0 ? (
+      {dbError ? (
+        <div className="rounded-xl border border-amber-900/40 bg-amber-950/20 px-6 py-5">
+          <p className="text-sm font-medium text-amber-400">
+            Base de données non disponible
+          </p>
+          <p className="mt-1 text-xs text-amber-600">
+            Vérifiez DATABASE_URL dans votre .env.
+          </p>
+        </div>
+      ) : prospects.length === 0 ? (
         <p className="text-sm text-zinc-500">
           Aucun prospect avec numéro de téléphone. Importez un CSV ou créez un prospect depuis le CRM.
         </p>

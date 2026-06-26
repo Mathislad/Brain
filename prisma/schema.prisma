@@ -50,6 +50,7 @@ model Prospect {
   recuLe         DateTime?
 
   links          ClientLink[]
+  documents      Document[]
 
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -92,4 +93,48 @@ model Payment {
 
   @@index([userId])
   @@index([prospectId])
+}
+
+model AccountingEntry {
+  id        String   @id @default(cuid())
+  userId    String
+
+  // "income" | "expense"
+  type      String
+  title     String
+  amount    Int      // en centimes
+  date      DateTime
+  note      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, date])
+}
+
+model Document {
+  id         String   @id @default(cuid())
+  userId     String
+  prospectId String
+
+  // "DEVIS" | "FACTURE" | "CONTRAT"
+  type       String
+  templateId String
+  reference  String
+  title      String
+  // "DRAFT" | "SENT" | "SIGNED" | "PAID" | "CANCELLED"
+  status     String   @default("DRAFT")
+  amount     Int?     // en centimes
+  data       Json?
+  issuedAt   DateTime @default(now())
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  prospect   Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, reference])
+  @@index([userId])
+  @@index([prospectId])
+  @@index([userId, type])
 }

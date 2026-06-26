@@ -108,6 +108,14 @@ export async function importFromCsvAction(
       return { count: 0, error: "Format d'import invalide." };
     }
 
+    // Garde de taille AVANT tout parcours (protège mémoire/CPU).
+    if (rows.length > 5000) {
+      return {
+        count: 0,
+        error: "Fichier trop volumineux (5000 lignes maximum).",
+      };
+    }
+
     const validRows = rows
       .filter((row) => row.nom?.trim())
       .slice(0, MAX_CSV_IMPORT_ROWS);

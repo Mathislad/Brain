@@ -8,6 +8,7 @@ import {
   deleteClientLinkAction,
 } from "@/app/actions/clients";
 import { ClientBillingSection } from "@/components/dashboard/client-billing-section";
+import { kindLabel, statusMeta } from "@/lib/document-templates";
 import type {
   ClientWithLinks,
   ClientLinkCategory,
@@ -114,6 +115,9 @@ export function ClientDetailModal({
           {/* Facturation */}
           <ClientBillingSection client={client} />
 
+          {/* Documents (devis / factures / contrats) */}
+          <DocumentsSummary client={client} />
+
           {/* Sections de liens */}
           {SECTIONS.map((section) => (
             <LinkSection
@@ -129,21 +133,26 @@ export function ClientDetailModal({
   );
 }
 
+function webHref(value: string | null): string | null {
+  if (!value) return null;
+  if (value.startsWith("http")) return value;
+  return `https://${value}`;
+}
+
+function socialHref(value: string | null, base: string): string | null {
+  if (!value) return null;
+  if (value.startsWith("http")) return value;
+  if (value.startsWith("@")) return `${base}${value.slice(1)}`;
+  return `https://${value}`;
+}
+
 function Coordonnees({ client }: { client: ClientWithLinks }) {
   const rows: { label: string; value: string | null; href?: string | null }[] = [
     { label: "Email", value: client.email, href: client.email ? `mailto:${client.email}` : null },
     { label: "Téléphone", value: client.telephone, href: client.telephone ? `tel:${client.telephone}` : null },
-    {
-      label: "Site",
-      value: client.siteInternet,
-      href: client.siteInternet
-        ? client.siteInternet.startsWith("http")
-          ? client.siteInternet
-          : `https://${client.siteInternet}`
-        : null,
-    },
-    { label: "Instagram", value: client.instagram, href: client.instagram },
-    { label: "LinkedIn", value: client.linkedin, href: client.linkedin },
+    { label: "Site", value: client.siteInternet, href: webHref(client.siteInternet) },
+    { label: "Instagram", value: client.instagram, href: socialHref(client.instagram, "https://instagram.com/") },
+    { label: "LinkedIn", value: client.linkedin, href: socialHref(client.linkedin, "https://www.linkedin.com/in/") },
   ].filter((r) => r.value);
 
   if (rows.length === 0) return null;
@@ -174,6 +183,81 @@ function Coordonnees({ client }: { client: ClientWithLinks }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+const DOC_TONE_CLASS: Record<string, string> = {
+  neutral: "bg-zinc-800 text-zinc-300",
+  info: "bg-blue-950/60 text-blue-400",
+  ok: "bg-emerald-950/60 text-emerald-400",
+  warn: "bg-amber-950/60 text-amber-400",
+  danger: "bg-red-950/60 text-red-400",
+};
+
+function DocumentsSummary({ client }: { client: ClientWithLinks }) {
+  const docs = client.documents;
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-zinc-600">
+          <span aria-hidden>📄</span>
+          Devis · Factures · Contrats
+          {docs.length > 0 && (
+            <span className="rounded-full bg-zinc-800 px-1.5 text-[10px] text-zinc-400">
+              {docs.length}
+            </span>
+          )}
+        </h3>
+        <a
+          href="/dashboard/entreprise/devis-facture"
+          className="text-xs text-zinc-500 transition-colors hover:text-white"
+        >
+          Gérer →
+        </a>
+      </div>
+
+      {docs.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-zinc-800/80 px-3 py-2.5 text-xs text-zinc-600">
+          Aucun document. Crée-en depuis Entreprise → Devis &amp; facture.
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {docs.map((doc) => {
+            const meta = statusMeta(doc.status);
+            return (
+              <div
+                key={doc.id}
+                className="flex items-center gap-3 rounded-lg border border-zinc-800/80 bg-zinc-900/30 px-3 py-2"
+              >
+                <span className="font-mono text-xs text-zinc-500">
+                  {doc.reference}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-zinc-200">{doc.title}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-zinc-600">
+                    {kindLabel(doc.type)}
+                  </p>
+                </div>
+                {doc.amount != null && (
+                  <span className="font-mono text-xs text-zinc-300">
+                    {(doc.amount / 100).toLocaleString("fr-FR", {
+                      style: "currency",
+                      currency: "EUR",
+                    })}
+                  </span>
+                )}
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${DOC_TONE_CLASS[meta.tone]}`}
+                >
+                  {meta.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
