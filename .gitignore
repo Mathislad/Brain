@@ -1,40 +1,37 @@
 # dependencies
-/node_modules
-/.pnp
+node_modules/
+.pnp
 .pnp.*
 
 # next.js
-/.next/
-/out/
+.next/
+out/
+build/
 
-# production
-/build
-
-# prisma : client généré (régénéré via `pnpm db:generate`)
-/generated/prisma
+# prisma generated client
+generated/prisma/
 
 # environment variables
 .env
-.env.local
-.env*.local
+.env.*
+!.env.example
 
-# debug
+# pnpm
+.pnpm-store/
+
+# deployments
+.vercel/
+
+# logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
 # misc
-.DS_Store
-/.vercel
-node_modules/
-.next/
-.env
-.env.*
-!.env.example
-.pnpm-store/
-.vercel/
 .DS_Store
