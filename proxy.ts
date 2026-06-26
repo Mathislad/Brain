@@ -1,38 +1,54 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getSessionCookie } from "better-auth/cookies";
+import { createServerClient } from "@supabase/ssr";
 
-/**
- * Proxy (ex-middleware, renommé dans Next 16) : protection optimiste des routes
- * basée sur la présence du cookie de session.
- *
- * Important : ceci ne VALIDE pas la session (pas d'appel base depuis l'edge),
- * c'est une redirection rapide. La vérification authoritative se fait dans les
- * pages serveur protégées via `getCurrentUser()`.
- *
- * - routes protégées  → redirigent vers /login si pas de cookie
- * - routes d'auth      → redirigent vers /dashboard si déjà connecté
- */
-const PROTECTED_ROUTES = ["/dashboard"];
-const AUTH_ROUTES = ["/login", "/register"];
+// Proxy Next 16 (ex-middleware) : rafraîchit la session Supabase et protège les routes.
+//
+// IMPORTANT : ne jamais mettre de logique entre createServerClient et
+// supabase.auth.getUser() — cela peut provoquer des déconnexions aléatoires.
+// On doit toujours retourner `supabaseResponse` (pas NextResponse.next()) pour
+// que les cookies de session soient correctement transmis.
+export async function proxy(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({ request });
 
-export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const hasSession = Boolean(getSessionCookie(request));
-
-  const isProtected = PROTECTED_ROUTES.some((route) =>
-    pathname.startsWith(route),
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value),
+          );
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options),
+          );
+        },
+      },
+    },
   );
-  const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
 
-  if (isProtected && !hasSession) {
+  // Rafraîchit le token de session si nécessaire.
+  // getUser() est la seule méthode sûre côté serveur pour vérifier l'auth
+  // (getSession() ne valide pas le token avec Supabase).
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+
+  if (!user && pathname.startsWith("/dashboard")) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (isAuthRoute && hasSession) {
+  if (user && (pathname === "/login" || pathname === "/register")) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  return NextResponse.next();
+  return supabaseResponse;
 }
 
 export const config = {

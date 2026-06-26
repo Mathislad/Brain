@@ -1,6 +1,13 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 
 import { RegisterForm } from "@/components/auth/register-form";
+
+export const metadata: Metadata = {
+  title: "Créer un compte",
+  description: "Créez votre compte Brain pour accéder à votre espace privé.",
+  alternates: { canonical: "/register" },
+};
 
 export default function RegisterPage() {
   return (

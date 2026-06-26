@@ -1,22 +1,16 @@
 import "server-only";
 
 import { cache } from "react";
-import { headers } from "next/headers";
 
-import { auth } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 
-/**
- * Récupère la session courante côté serveur (vérification authoritative en base).
- * Mis en cache par requête via `react/cache` pour éviter les appels redondants.
- */
-export const getSession = cache(async () => {
-  return auth.api.getSession({ headers: await headers() });
-});
-
-/**
- * Raccourci : retourne l'utilisateur connecté, ou `null`.
- */
+// Récupère l'utilisateur connecté côté serveur via Supabase.
+// getUser() valide le token JWT auprès de Supabase (plus sûr que getSession()).
+// Mis en cache par requête via react/cache pour éviter les appels redondants.
 export const getCurrentUser = cache(async () => {
-  const session = await getSession();
-  return session?.user ?? null;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user;
 });

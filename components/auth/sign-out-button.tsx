@@ -1,29 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useFormStatus } from "react-dom";
 
-import { signOut } from "@/lib/auth-client";
+import { signOutAction } from "@/app/actions/auth";
 
-export function SignOutButton() {
-  const router = useRouter();
-  const [pending, setPending] = useState(false);
-
-  async function handleSignOut() {
-    setPending(true);
-    await signOut();
-    router.push("/login");
-    router.refresh();
-  }
-
+function SubmitButton() {
+  const { pending } = useFormStatus();
   return (
     <button
-      type="button"
-      onClick={handleSignOut}
+      type="submit"
       disabled={pending}
       className="text-sm text-zinc-400 underline-offset-4 transition-colors hover:text-white hover:underline disabled:opacity-60"
     >
       {pending ? "Déconnexion…" : "Se déconnecter"}
     </button>
+  );
+}
+
+// Formulaire HTML simple : la déconnexion se fait côté serveur (Server Action)
+// pour effacer les cookies de session de façon fiable avant la redirection.
+export function SignOutButton() {
+  return (
+    <form action={signOutAction}>
+      <SubmitButton />
+    </form>
   );
 }

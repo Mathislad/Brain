@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { signUp } from "@/lib/auth-client";
+import { createClient } from "@/lib/supabase/client";
+import { getRegisterError, devLogAuthError } from "@/lib/auth-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -11,6 +12,7 @@ export function RegisterForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const errorId = "register-error";
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -21,8 +23,9 @@ export function RegisterForm() {
     const email = String(formData.get("email") ?? "").trim();
     const password = String(formData.get("password") ?? "");
 
+    // Validation locale avant d'appeler Supabase
     if (name.length < 2) {
-      setError("Veuillez indiquer votre nom.");
+      setError("Veuillez indiquer votre nom (2 caractères minimum).");
       return;
     }
     if (password.length < 8) {
@@ -31,20 +34,34 @@ export function RegisterForm() {
     }
 
     setPending(true);
-    const { error } = await signUp.email({ name, email, password });
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name } },
+    });
 
     if (error) {
+      devLogAuthError("signUp", error);
+      setError(getRegisterError(error));
+      setPending(false);
+      return;
+    }
+
+    // Quand la confirmation email est activée, Supabase ne retourne PAS d'erreur
+    // si l'email existe déjà — il renvoie simplement un user avec identities vide.
+    // C'est la seule façon fiable de détecter un doublon côté client.
+    if (data.user && data.user.identities?.length === 0) {
       setError(
-        error.code === "USER_ALREADY_EXISTS"
-          ? "Un compte existe déjà avec cet email."
-          : "Impossible de créer le compte. Réessayez.",
+        "Un compte existe déjà avec cette adresse email. Connectez-vous ou utilisez une autre adresse.",
       );
       setPending(false);
       return;
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    // Inscription réussie : pas de session encore.
+    // L'utilisateur doit confirmer son email via le code OTP reçu par mail.
+    router.push(`/confirm-email?email=${encodeURIComponent(email)}`);
   }
 
   return (
@@ -60,6 +77,8 @@ export function RegisterForm() {
           autoComplete="name"
           required
           placeholder="Votre nom"
+          aria-invalid={!!error}
+          aria-describedby={error ? errorId : undefined}
         />
       </div>
 
@@ -74,6 +93,8 @@ export function RegisterForm() {
           autoComplete="email"
           required
           placeholder="vous@exemple.com"
+          aria-invalid={!!error}
+          aria-describedby={error ? errorId : undefined}
         />
       </div>
 
@@ -89,10 +110,16 @@ export function RegisterForm() {
           required
           minLength={8}
           placeholder="8 caractères minimum"
+          aria-invalid={!!error}
+          aria-describedby={error ? errorId : undefined}
         />
       </div>
 
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
+      {error ? (
+        <p id={errorId} role="alert" className="text-sm text-red-400">
+          {error}
+        </p>
+      ) : null}
 
       <Button type="submit" disabled={pending}>
         {pending ? "Création…" : "Créer le compte"}
