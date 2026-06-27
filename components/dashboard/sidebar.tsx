@@ -48,6 +48,7 @@ const navGroups: NavGroup[] = [
     label: "Working",
     items: [
       { label: "Todolist", href: "/dashboard/working/todolist" },
+      { label: "Prompt", href: "/dashboard/working/prompt" },
       { label: "Site internet", href: "/dashboard/working/site-internet" },
       { label: "Lancement", href: "/dashboard/working/lancement" },
     ],

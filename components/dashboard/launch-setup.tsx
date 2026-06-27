@@ -183,6 +183,14 @@ function loadSessions() {
   return defaultSessions;
 }
 
+function saveSessionsLocally(sessions: LaunchSession[]) {
+  try {
+    localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(sessions));
+  } catch {
+    // Local persistence is only a safety net when the server config is unavailable.
+  }
+}
+
 function enabledTargets(session: LaunchSession) {
   return session.targets.filter((targetItem) => (
     targetItem.enabled && targetItem.target.trim()
@@ -202,26 +210,55 @@ export function LaunchSetup() {
     useState<LaunchSession | null>(null);
 
   useEffect(() => {
-    getLaunchConfigAction().then((config) => {
-      const dbSessions = config?.sessions ? normalizeSessions(config.sessions as unknown[]) : null;
-      if (dbSessions) {
-        setSessions(dbSessions);
-        setSelectedSessionId(dbSessions[0]?.id ?? defaultSessions[0].id);
-      } else {
-        // Migration: load from localStorage once, then persist to DB
-        const localSessions = loadSessions();
-        setSessions(localSessions);
-        setSelectedSessionId(localSessions[0]?.id ?? defaultSessions[0].id);
-        saveLaunchConfigAction(localSessions);
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      async function loadInitialConfig() {
+        let nextSessions = loadSessions();
+        let fallbackMessage: string | null = null;
+
+        try {
+          const config = await getLaunchConfigAction();
+          const dbSessions = config?.sessions
+            ? normalizeSessions(config.sessions as unknown[])
+            : null;
+
+          if (dbSessions) {
+            nextSessions = dbSessions;
+          } else {
+            void saveLaunchConfigAction(nextSessions).catch(() => {
+              saveSessionsLocally(nextSessions);
+            });
+          }
+        } catch {
+          fallbackMessage = "Configuration locale chargée.";
+          saveSessionsLocally(nextSessions);
+        }
+
+        if (cancelled) return;
+
+        setSessions(nextSessions);
+        setSelectedSessionId(nextSessions[0]?.id ?? defaultSessions[0].id);
+        setMusicSettings(loadMusicSettings());
+        setLoaded(true);
+
+        if (fallbackMessage) {
+          setStatus(fallbackMessage);
+        }
       }
-      setMusicSettings(loadMusicSettings());
-      setLoaded(true);
+
+      void loadInitialConfig();
     });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
     if (!loaded) return;
-    saveLaunchConfigAction(sessions);
+    saveSessionsLocally(sessions);
+    void saveLaunchConfigAction(sessions).catch(() => undefined);
   }, [loaded, sessions]);
 
   const selectedSession = useMemo(() => {

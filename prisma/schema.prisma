@@ -203,6 +203,24 @@ model LaunchConfig {
   @@index([userId])
 }
 
+// ─── Bibliothèque de prompts ─────────────────────────────────────────────────
+model Prompt {
+  id        String   @id @default(cuid())
+  userId    String
+
+  title     String
+  category  String
+  content   String
+  tags      String[]
+  favorite  Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, category])
+}
+
 // ─── CMS « Site internet » ──────────────────────────────────────────────────
 // Site = back-office du site d'un client. Le site live (construit séparément)
 // lit ce contenu via l'API publique /api/public/site/[slug].
