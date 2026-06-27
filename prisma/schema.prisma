@@ -203,6 +203,30 @@ model LaunchConfig {
   @@index([userId])
 }
 
+// ─── Contrats ────────────────────────────────────────────────────────────────
+model Contrat {
+  id         String   @id @default(cuid())
+  userId     String
+
+  clientNom  String
+  clientSiret String?
+  services   String[]
+  total      String?
+  dureeMois  Int
+  dateDebut  DateTime?
+  dateSig    DateTime?
+  statut     String   @default("brouillon") // brouillon | envoye | signe | archive
+  storagePath String?                        // chemin dans Supabase Storage
+  formData   Json                            // toutes les vars pour régénération
+  notes      String?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, statut])
+}
+
 // ─── Bibliothèque de prompts ─────────────────────────────────────────────────
 model Prompt {
   id        String   @id @default(cuid())

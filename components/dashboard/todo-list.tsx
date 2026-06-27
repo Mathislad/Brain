@@ -80,7 +80,9 @@ export function TodoList() {
   }
 
   useEffect(() => {
-    refresh();
+    queueMicrotask(() => {
+      void refresh();
+    });
   }, []);
 
   const counts = useMemo(
@@ -124,7 +126,7 @@ export function TodoList() {
     <div className="px-4 py-8 sm:px-8 sm:py-10">
       <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-widest text-zinc-600">Working</p>
+          <p className="text-xs uppercase tracking-widest text-zinc-600">Outils</p>
           <h1 className="mt-1 text-2xl font-medium tracking-tight text-white">Todolist</h1>
           <p className="mt-1 text-sm text-zinc-500">
             Liste de tâches pour garder le travail en cours visible.

@@ -39,18 +39,31 @@ const navGroups: NavGroup[] = [
   {
     label: "Entreprise",
     items: [
+      { label: "Contrats", href: "/dashboard/entreprise/contrats" },
       { label: "Comptabilité", href: "/dashboard/entreprise/comptabilite" },
       { label: "Devis & facture", href: "/dashboard/entreprise/devis-facture" },
       { label: "Client", href: "/dashboard/entreprise/client" },
     ],
   },
   {
-    label: "Working",
+    label: "Outils",
     items: [
       { label: "Todolist", href: "/dashboard/working/todolist" },
       { label: "Prompt", href: "/dashboard/working/prompt" },
       { label: "Site internet", href: "/dashboard/working/site-internet" },
       { label: "Lancement", href: "/dashboard/working/lancement" },
+    ],
+  },
+  {
+    label: "Module",
+    items: [
+      { label: "Carte de fidélité", href: "/dashboard/module/carte-fidelite" },
+      { label: "Ads", href: "/dashboard/module/ads" },
+      { label: "Agent IA", href: "/dashboard/module/agent-ia" },
+      {
+        label: "Système de réservation",
+        href: "/dashboard/module/systeme-reservation",
+      },
     ],
   },
 ];
