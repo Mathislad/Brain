@@ -299,6 +299,31 @@ function defaultFieldsForTemplate(templateId: string) {
   );
 }
 
+function parseDecimal(value: string | undefined): number | null {
+  const normalized = (value ?? "")
+    .replace(/\s/g, "")
+    .replace(/[^\d,.-]/g, "")
+    .replace(",", ".");
+  const amount = Number.parseFloat(normalized);
+  return Number.isFinite(amount) ? amount : null;
+}
+
+function isFullyOffered(value: string | undefined): boolean {
+  return /\b(oui|offert|offerte|gratuit|gratuite|total|totale)\b/i.test(
+    value ?? "",
+  );
+}
+
+function applyCommercialTerms(amount: number, fields: Record<string, string>): number {
+  if (isFullyOffered(fields.offert)) return 0;
+
+  const discount = parseDecimal(fields.remise_pourcentage);
+  if (discount == null) return amount;
+
+  const clampedDiscount = Math.min(100, Math.max(0, discount));
+  return amount * (1 - clampedDiscount / 100);
+}
+
 function CreateDocumentModal({
   prospects,
   onClose,
@@ -356,9 +381,9 @@ function CreateDocumentModal({
     let amount: number | null = null;
     if (template.amountFieldKey) {
       const raw = fields[template.amountFieldKey];
-      if (raw) {
-        const n = Number.parseFloat(raw.replace(",", "."));
-        if (Number.isFinite(n)) amount = Math.round(n * 100);
+      const n = parseDecimal(raw);
+      if (n != null) {
+        amount = Math.round(applyCommercialTerms(n, fields) * 100);
       }
     }
 

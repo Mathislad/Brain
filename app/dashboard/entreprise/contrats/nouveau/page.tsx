@@ -108,17 +108,60 @@ function addMonths(dateStr: string, months: number): string {
   return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
 }
 
-function parsePrice(str: string): number {
-  const digits = str.replace(/[^0-9]/g, "");
-  return digits ? parseInt(digits, 10) : 0;
+function parseDecimal(value: string): number | null {
+  const match = value.match(/\d[\d\s]*(?:[,.]\d+)?/);
+  if (!match) return null;
+  const amount = Number.parseFloat(match[0].replace(/\s/g, "").replace(",", "."));
+  return Number.isFinite(amount) ? amount : null;
+}
+
+function parseServicePrice(str: string): number | null {
+  const value = str.trim();
+  if (!value) return 0;
+
+  const lower = value.toLowerCase();
+  if (/\b(offert|offerte|gratuit|gratuite)\b/.test(lower)) return 0;
+
+  const hasPaymentTiers =
+    /\b(puis|pendant|palier|paliers|premiers?\s+mois)\b/.test(lower) ||
+    /\d+\s*(m|mois)\s+à/.test(lower) ||
+    value.includes("+");
+
+  if (hasPaymentTiers) return null;
+
+  const amount = parseDecimal(value);
+  if (amount == null) return null;
+
+  const discountMatch = lower.match(/-?\s*(\d+(?:[,.]\d+)?)\s*%/);
+  if (!discountMatch) return amount;
+
+  const discount = Number.parseFloat(discountMatch[1].replace(",", "."));
+  if (!Number.isFinite(discount)) return amount;
+
+  const clampedDiscount = Math.min(100, Math.max(0, discount));
+  return amount * (1 - clampedDiscount / 100);
 }
 
 function computeTotal(form: FormState): string {
+  let hasComplexPricing = false;
   const sum = form.services_souscrits.reduce((acc, key) => {
     const raw = form[`prix_${key}` as keyof FormState] as string;
-    return acc + parsePrice(raw);
+    const parsed = parseServicePrice(raw);
+    if (parsed == null) {
+      hasComplexPricing = true;
+      return acc;
+    }
+    return acc + parsed;
   }, 0);
-  return sum > 0 ? `${sum} €/mois` : "";
+  const rounded = Math.round(sum * 100) / 100;
+  const formatted = rounded.toLocaleString("fr-FR", {
+    maximumFractionDigits: 2,
+  });
+
+  if (rounded > 0 && hasComplexPricing) return `${formatted} €/mois + paliers`;
+  if (rounded > 0) return `${formatted} €/mois`;
+  if (hasComplexPricing) return "Selon paliers";
+  return "";
 }
 
 // ─── Input components ─────────────────────────────────────────────────────────
@@ -214,7 +257,7 @@ function StepServices({ form, set, toggle }: {
                   className="h-9 w-36 rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-sm text-white outline-none focus:border-zinc-500"
                   value={form[priceKey] as string}
                   onChange={e => set(priceKey, e.target.value)}
-                  placeholder={meta.default_price}
+                  placeholder={`${meta.default_price}, offert, -20%`}
                 />
               )}
             </div>

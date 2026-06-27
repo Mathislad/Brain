@@ -40,11 +40,18 @@ const MONEY_KEYS = new Set([
 type RGB = readonly [number, number, number];
 type FontName = "F1" | "F2";
 
+function parseDecimal(value: number | string | null | undefined) {
+  if (typeof value === "number") return value;
+  const normalized = String(value ?? "")
+    .replace(/\s/g, "")
+    .replace(/[^\d,.-]/g, "")
+    .replace(",", ".");
+  const amount = Number.parseFloat(normalized);
+  return Number.isFinite(amount) ? amount : Number.NaN;
+}
+
 function asMoney(value: number | string | null | undefined) {
-  const amount =
-    typeof value === "number"
-      ? value
-      : Number.parseFloat(String(value ?? "").replace(",", "."));
+  const amount = parseDecimal(value);
   if (!Number.isFinite(amount)) return "";
   return amount.toLocaleString("fr-FR", {
     style: "currency",
@@ -237,6 +244,10 @@ function getData(document: PdfDocument, key: string) {
 
 function formatFieldValue(key: string, value: string) {
   if (MONEY_KEYS.has(key)) return asMoney(value);
+  if (key === "remise_pourcentage") {
+    const discount = parseDecimal(value);
+    if (Number.isFinite(discount)) return `${discount.toLocaleString("fr-FR")} %`;
+  }
   return value;
 }
 
@@ -347,13 +358,24 @@ export function generateDocumentPdf(document: PdfDocument) {
   }
 
   rows.forEach((row, index) => {
-    ensureSpace(36);
+    const valueLines = wrapText(row.value, 170, 10);
+    const rowHeight = Math.max(32, 16 + valueLines.length * 13);
+    ensureSpace(rowHeight + 4);
     if (index % 2 === 0) {
-      canvas.rect(MARGIN, y, PAGE_WIDTH - MARGIN * 2, 32, LIGHT);
+      canvas.rect(MARGIN, y, PAGE_WIDTH - MARGIN * 2, rowHeight, LIGHT);
     }
     canvas.text(row.label, MARGIN + 14, y + 10, 9, BLACK);
-    canvas.text(row.value, PAGE_WIDTH - MARGIN - 170, y + 10, 10, BLACK, "F2");
-    y += 32;
+    valueLines.forEach((line, lineIndex) => {
+      canvas.text(
+        line,
+        PAGE_WIDTH - MARGIN - 170,
+        y + 10 + lineIndex * 13,
+        10,
+        BLACK,
+        "F2",
+      );
+    });
+    y += rowHeight;
   });
 
   if (document.amount != null) {
