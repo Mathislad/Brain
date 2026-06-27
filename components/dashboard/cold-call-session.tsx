@@ -21,8 +21,7 @@ const STATUS_OPTIONS: Array<{ id: ProspectStatus; label: string }> = [
 const ALL_STATUSES = "__all__";
 const ALL_NICHES = "__all__";
 
-// Liste rouge « ne pas rappeler » — même source que le CRM (localStorage).
-const DO_NOT_CALL_STORAGE_KEY = "brain.crm.doNotCall.v1";
+import { getDoNotCallListAction } from "@/app/actions/do-not-call";
 
 function normalizePhone(value: string | null | undefined) {
   const digits = (value ?? "").replace(/\D/g, "");
@@ -30,22 +29,6 @@ function normalizePhone(value: string | null | undefined) {
   if (digits.startsWith("0033")) return `0${digits.slice(4)}`;
   if (digits.startsWith("33") && digits.length === 11) return `0${digits.slice(2)}`;
   return digits;
-}
-
-function loadDoNotCallSet(): Set<string> {
-  try {
-    const raw = localStorage.getItem(DO_NOT_CALL_STORAGE_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw) as Array<{ phone?: string; normalizedPhone?: string }>;
-    if (!Array.isArray(parsed)) return new Set();
-    return new Set(
-      parsed
-        .map((e) => normalizePhone(e.normalizedPhone || e.phone))
-        .filter(Boolean),
-    );
-  } catch {
-    return new Set();
-  }
 }
 
 type QuickFields = {
@@ -109,7 +92,9 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    setDoNotCallSet(loadDoNotCallSet());
+    getDoNotCallListAction().then((entries) => {
+      setDoNotCallSet(new Set(entries.map((e) => e.normalizedPhone)));
+    });
   }, []);
 
   const niches = useMemo(

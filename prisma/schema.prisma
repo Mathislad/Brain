@@ -140,6 +140,69 @@ model Document {
   @@index([userId, type])
 }
 
+// ─── Liste rouge « Ne pas rappeler » ────────────────────────────────────────
+model DoNotCall {
+  id              String   @id @default(cuid())
+  userId          String
+
+  phone           String
+  normalizedPhone String
+  note            String?
+
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, normalizedPhone])
+  @@index([userId])
+}
+
+// ─── Todolist ────────────────────────────────────────────────────────────────
+model TodoItem {
+  id        String   @id @default(cuid())
+  userId    String
+
+  title     String
+  context   String?
+  status    String   @default("TODO")    // TODO | IN_PROGRESS | DONE
+  priority  String   @default("MEDIUM")  // LOW | MEDIUM | HIGH
+  dueDate   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, status])
+}
+
+// ─── Réseaux sociaux — idées de contenu ─────────────────────────────────────
+model ContentIdea {
+  id            String   @id @default(cuid())
+  userId        String
+
+  title         String
+  angle         String?
+  format        String   // "simple" | "short"
+  platform      String
+  plannedSlotId String?
+  steps         Json     @default("{}")  // { script, tournage, montage, publication }
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ─── Lancement — configuration des sessions ──────────────────────────────────
+model LaunchConfig {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+
+  sessions  Json     @default("[]")  // LaunchSession[]
+
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
 // ─── CMS « Site internet » ──────────────────────────────────────────────────
 // Site = back-office du site d'un client. Le site live (construit séparément)
 // lit ce contenu via l'API publique /api/public/site/[slug].

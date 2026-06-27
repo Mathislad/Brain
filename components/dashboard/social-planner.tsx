@@ -1,7 +1,14 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+
+import {
+  createContentIdeaAction,
+  deleteContentIdeaAction,
+  getContentIdeasAction,
+  updateContentIdeaAction,
+} from "@/app/actions/content-ideas";
 
 type ContentFormat = "simple" | "short";
 type ContentStep = "script" | "tournage" | "montage" | "publication";
@@ -14,7 +21,6 @@ interface ContentIdea {
   angle: string;
   format: ContentFormat;
   platform: string;
-  createdAt: string;
   plannedSlotId?: string;
   steps: Record<ContentStep, boolean>;
 }
@@ -26,8 +32,6 @@ interface PlanningSlot {
   label: string;
   format: ContentFormat;
 }
-
-const STORAGE_KEY = "brain.socialPlanner.v1";
 
 const stepLabels: Record<ContentStep, string> = {
   script: "Script",
@@ -45,27 +49,13 @@ const slotTemplates: Array<Pick<PlanningSlot, "type" | "label" | "format">> = [
 const platforms = ["Instagram", "LinkedIn", "TikTok", "Facebook", "YouTube"];
 
 function emptySteps(): Record<ContentStep, boolean> {
-  return {
-    script: false,
-    tournage: false,
-    montage: false,
-    publication: false,
-  };
-}
-
-function createId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return { script: false, tournage: false, montage: false, publication: false };
 }
 
 function dateKey(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 }
 
@@ -90,7 +80,6 @@ function buildWeekSlots(today: Date): PlanningSlot[] {
     const day = new Date(today);
     day.setDate(today.getDate() + dayIndex);
     const key = dateKey(day);
-
     return slotTemplates.map((slot) => ({
       id: `${key}-${slot.type}`,
       dateKey: key,
@@ -105,36 +94,34 @@ function countDone(idea: ContentIdea) {
 
 function progressLabel(idea: ContentIdea) {
   const done = countDone(idea);
-
   if (done === 0) return "Idée";
   if (done === 4) return "Publié";
-
   return `${done}/4`;
 }
 
-function loadIdeas(): ContentIdea[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-
-    const parsed = JSON.parse(raw) as ContentIdea[];
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed.map((idea) => ({
-      ...idea,
-      steps: {
-        ...emptySteps(),
-        ...idea.steps,
-      },
-    }));
-  } catch {
-    return [];
-  }
+function dbToLocal(db: {
+  id: string;
+  title: string;
+  angle: string | null;
+  format: string;
+  platform: string;
+  plannedSlotId: string | null;
+  steps: unknown;
+}): ContentIdea {
+  const rawSteps = db.steps as Record<string, boolean> | null;
+  return {
+    id: db.id,
+    title: db.title,
+    angle: db.angle ?? "",
+    format: db.format as ContentFormat,
+    platform: db.platform,
+    plannedSlotId: db.plannedSlotId ?? undefined,
+    steps: { ...emptySteps(), ...rawSteps },
+  };
 }
 
 export function SocialPlanner() {
   const [ideas, setIdeas] = useState<ContentIdea[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [title, setTitle] = useState("");
   const [angle, setAngle] = useState("");
   const [format, setFormat] = useState<ContentFormat>("simple");
@@ -142,94 +129,82 @@ export function SocialPlanner() {
   const [selectedSlotId, setSelectedSlotId] = useState("");
   const [activeView, setActiveView] = useState<PlannerView>("posts");
   const [today] = useState(() => new Date());
+  const [isPending, startTransition] = useTransition();
+
+  async function refresh() {
+    const fresh = await getContentIdeasAction();
+    setIdeas(fresh.map(dbToLocal));
+  }
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setIdeas(loadIdeas());
-      setIsLoaded(true);
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
+    refresh();
   }, []);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ideas));
-  }, [ideas, isLoaded]);
-
   const slots = useMemo(() => buildWeekSlots(today), [today]);
-  const slotById = useMemo(
-    () => new Map(slots.map((slot) => [slot.id, slot])),
-    [slots],
-  );
+  const slotById = useMemo(() => new Map(slots.map((slot) => [slot.id, slot])), [slots]);
   const todayKey = dateKey(today);
-  const plannedIdeaIds = new Set(
-    ideas.filter((idea) => idea.plannedSlotId).map((idea) => idea.id),
-  );
+  const plannedIdeaIds = new Set(ideas.filter((idea) => idea.plannedSlotId).map((idea) => idea.id));
 
   const availableSlots = slots.filter((slot) => {
-    const assignedIdea = ideas.find((idea) => idea.plannedSlotId === slot.id);
-    return !assignedIdea && slot.format === format;
+    const assigned = ideas.find((idea) => idea.plannedSlotId === slot.id);
+    return !assigned && slot.format === format;
   });
 
   function addIdea(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmedTitle = title.trim();
     if (!trimmedTitle) return;
-
-    const idea: ContentIdea = {
-      id: createId(),
-      title: trimmedTitle,
-      angle: angle.trim(),
-      format,
-      platform,
-      createdAt: new Date().toISOString(),
-      plannedSlotId: selectedSlotId || undefined,
-      steps: emptySteps(),
-    };
-
-    setIdeas((current) => [idea, ...current]);
-    setTitle("");
-    setAngle("");
-    setFormat("simple");
-    setPlatform(platforms[0]);
-    setSelectedSlotId("");
+    startTransition(async () => {
+      const created = await createContentIdeaAction({
+        title: trimmedTitle,
+        angle: angle.trim() || undefined,
+        format,
+        platform,
+      });
+      if (created && selectedSlotId) {
+        await updateContentIdeaAction(created.id, { plannedSlotId: selectedSlotId });
+      }
+      await refresh();
+      setTitle("");
+      setAngle("");
+      setFormat("simple");
+      setPlatform(platforms[0]);
+      setSelectedSlotId("");
+    });
   }
 
   function toggleStep(id: string, step: ContentStep) {
-    setIdeas((current) =>
-      current.map((idea) =>
-        idea.id === id
-          ? {
-              ...idea,
-              steps: {
-                ...idea.steps,
-                [step]: !idea.steps[step],
-              },
-            }
-          : idea,
-      ),
-    );
+    const idea = ideas.find((i) => i.id === id);
+    if (!idea) return;
+    const newSteps = { ...idea.steps, [step]: !idea.steps[step] };
+    setIdeas((current) => current.map((i) => (i.id === id ? { ...i, steps: newSteps } : i)));
+    startTransition(async () => {
+      await updateContentIdeaAction(id, { steps: newSteps });
+    });
   }
 
   function assignSlot(id: string, slotId: string) {
     setIdeas((current) =>
       current.map((idea) => {
-        if (idea.plannedSlotId === slotId && idea.id !== id) {
-          return { ...idea, plannedSlotId: undefined };
-        }
-
-        if (idea.id === id) {
-          return { ...idea, plannedSlotId: slotId || undefined };
-        }
-
+        if (idea.plannedSlotId === slotId && idea.id !== id) return { ...idea, plannedSlotId: undefined };
+        if (idea.id === id) return { ...idea, plannedSlotId: slotId || undefined };
         return idea;
       }),
     );
+    startTransition(async () => {
+      const prevAssigned = ideas.find((i) => i.plannedSlotId === slotId && i.id !== id);
+      if (prevAssigned) {
+        await updateContentIdeaAction(prevAssigned.id, { plannedSlotId: null });
+      }
+      await updateContentIdeaAction(id, { plannedSlotId: slotId || null });
+    });
   }
 
   function removeIdea(id: string) {
-    setIdeas((current) => current.filter((idea) => idea.id !== id));
+    setIdeas((current) => current.filter((i) => i.id !== id));
+    startTransition(async () => {
+      await deleteContentIdeaAction(id);
+    });
   }
 
   function ideaForSlot(slotId: string) {
@@ -242,15 +217,9 @@ export function SocialPlanner() {
     <div className="px-4 py-8 sm:px-8 sm:py-10">
       <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-widest text-zinc-600">
-            Prospection
-          </p>
-          <h1 className="mt-1 text-2xl font-medium tracking-tight text-white">
-            Réseaux sociaux
-          </h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Planning depuis le {formatFullDate(today)}
-          </p>
+          <p className="text-xs uppercase tracking-widest text-zinc-600">Prospection</p>
+          <h1 className="mt-1 text-2xl font-medium tracking-tight text-white">Réseaux sociaux</h1>
+          <p className="mt-1 text-sm text-zinc-500">Planning depuis le {formatFullDate(today)}</p>
           <div className="mt-4 grid h-10 w-fit grid-cols-2 rounded-lg border border-zinc-800 bg-zinc-950 p-1">
             {[
               ["posts", "Posts"],
@@ -261,9 +230,7 @@ export function SocialPlanner() {
                 type="button"
                 onClick={() => setActiveView(value as PlannerView)}
                 className={`rounded-md px-5 text-sm transition-colors ${
-                  activeView === value
-                    ? "bg-zinc-800 text-white"
-                    : "text-zinc-500 hover:text-zinc-300"
+                  activeView === value ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 {label}
@@ -294,7 +261,7 @@ export function SocialPlanner() {
                 <span className="text-xs font-medium text-zinc-500">Idée</span>
                 <input
                   value={title}
-                  onChange={(event) => setTitle(event.target.value)}
+                  onChange={(e) => setTitle(e.target.value)}
                   placeholder="Ex: Avant / après d'un audit Instagram"
                   className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-zinc-600"
                 />
@@ -304,7 +271,7 @@ export function SocialPlanner() {
                 <span className="text-xs font-medium text-zinc-500">Angle</span>
                 <textarea
                   value={angle}
-                  onChange={(event) => setAngle(event.target.value)}
+                  onChange={(e) => setAngle(e.target.value)}
                   placeholder="Hook, promesse, CTA ou notes de script"
                   rows={4}
                   className="resize-none rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-zinc-600"
@@ -313,13 +280,11 @@ export function SocialPlanner() {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-zinc-500">
-                    Format
-                  </span>
+                  <span className="text-xs font-medium text-zinc-500">Format</span>
                   <select
                     value={format}
-                    onChange={(event) => {
-                      setFormat(event.target.value as ContentFormat);
+                    onChange={(e) => {
+                      setFormat(e.target.value as ContentFormat);
                       setSelectedSlotId("");
                     }}
                     className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white outline-none transition-colors focus:border-zinc-600"
@@ -330,12 +295,10 @@ export function SocialPlanner() {
                 </label>
 
                 <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-zinc-500">
-                    Plateforme
-                  </span>
+                  <span className="text-xs font-medium text-zinc-500">Plateforme</span>
                   <select
                     value={platform}
-                    onChange={(event) => setPlatform(event.target.value)}
+                    onChange={(e) => setPlatform(e.target.value)}
                     className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white outline-none transition-colors focus:border-zinc-600"
                   >
                     {platforms.map((item) => (
@@ -346,12 +309,10 @@ export function SocialPlanner() {
               </div>
 
               <label className="grid gap-1.5">
-                <span className="text-xs font-medium text-zinc-500">
-                  Créneau planning
-                </span>
+                <span className="text-xs font-medium text-zinc-500">Créneau planning</span>
                 <select
                   value={selectedSlotId}
-                  onChange={(event) => setSelectedSlotId(event.target.value)}
+                  onChange={(e) => setSelectedSlotId(e.target.value)}
                   className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white outline-none transition-colors focus:border-zinc-600"
                 >
                   <option value="">À planifier plus tard</option>
@@ -365,9 +326,10 @@ export function SocialPlanner() {
 
               <button
                 type="submit"
-                className="h-10 rounded-lg bg-white px-4 text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-200"
+                disabled={isPending}
+                className="h-10 rounded-lg bg-white px-4 text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-200 disabled:opacity-50"
               >
-                Ajouter le post
+                {isPending ? "…" : "Ajouter le post"}
               </button>
             </form>
           </section>
@@ -376,9 +338,7 @@ export function SocialPlanner() {
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-medium text-white">Posts</h2>
-                <p className="mt-1 text-xs text-zinc-500">
-                  Suivi de production et affectation au planning.
-                </p>
+                <p className="mt-1 text-xs text-zinc-500">Suivi de production et affectation au planning.</p>
               </div>
               <button
                 type="button"
@@ -396,10 +356,7 @@ export function SocialPlanner() {
             ) : (
               <div className="grid gap-3">
                 {ideas.map((idea) => {
-                  const assignedSlot = idea.plannedSlotId
-                    ? slotById.get(idea.plannedSlotId)
-                    : undefined;
-
+                  const assignedSlot = idea.plannedSlotId ? slotById.get(idea.plannedSlotId) : undefined;
                   return (
                     <article
                       key={idea.id}
@@ -408,9 +365,7 @@ export function SocialPlanner() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="truncate text-sm font-medium text-white">
-                              {idea.title}
-                            </h3>
+                            <h3 className="truncate text-sm font-medium text-white">{idea.title}</h3>
                             <span className="rounded-full border border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-400">
                               {idea.format === "short" ? "Short" : "Simple"}
                             </span>
@@ -420,9 +375,7 @@ export function SocialPlanner() {
                           </div>
                           <p className="mt-1 text-xs text-zinc-500">
                             {idea.platform}
-                            {assignedSlot
-                              ? ` · ${assignedSlot.dateKey} · ${assignedSlot.label}`
-                              : ""}
+                            {assignedSlot ? ` · ${assignedSlot.dateKey} · ${assignedSlot.label}` : ""}
                           </p>
                         </div>
                         <button
@@ -458,12 +411,10 @@ export function SocialPlanner() {
                       </div>
 
                       <label className="mt-4 grid gap-1.5">
-                        <span className="text-xs font-medium text-zinc-500">
-                          Planning
-                        </span>
+                        <span className="text-xs font-medium text-zinc-500">Planning</span>
                         <select
                           value={idea.plannedSlotId ?? ""}
-                          onChange={(event) => assignSlot(idea.id, event.target.value)}
+                          onChange={(e) => assignSlot(idea.id, e.target.value)}
                           className="h-9 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-xs text-white outline-none transition-colors focus:border-zinc-600"
                         >
                           <option value="">Non planifié</option>
@@ -472,13 +423,8 @@ export function SocialPlanner() {
                             .map((slot) => {
                               const slotIdea = ideaForSlot(slot.id);
                               const isTaken = slotIdea && slotIdea.id !== idea.id;
-
                               return (
-                                <option
-                                  key={slot.id}
-                                  value={slot.id}
-                                  disabled={isTaken}
-                                >
+                                <option key={slot.id} value={slot.id} disabled={isTaken}>
                                   {slot.dateKey} · {slot.label}
                                   {isTaken ? " · occupé" : ""}
                                 </option>
@@ -497,12 +443,8 @@ export function SocialPlanner() {
         <section>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-base font-medium text-white">
-                Planning de publication
-              </h2>
-              <p className="mt-1 text-xs text-zinc-500">
-                2 posts simples et 1 short par jour.
-              </p>
+              <h2 className="text-base font-medium text-white">Planning de publication</h2>
+              <p className="mt-1 text-xs text-zinc-500">2 posts simples et 1 short par jour.</p>
             </div>
             <button
               type="button"
@@ -520,16 +462,10 @@ export function SocialPlanner() {
                 day.setDate(today.getDate() + index);
                 const key = dateKey(day);
                 const daySlots = slots.filter((slot) => slot.dateKey === key);
-
                 return (
-                  <div
-                    key={key}
-                    className={key === todayKey ? "bg-zinc-900/45" : ""}
-                  >
+                  <div key={key} className={key === todayKey ? "bg-zinc-900/45" : ""}>
                     <div className="border-b border-zinc-800/70 px-3 py-3">
-                      <p className="text-sm font-medium capitalize text-white">
-                        {formatDayLabel(day)}
-                      </p>
+                      <p className="text-sm font-medium capitalize text-white">{formatDayLabel(day)}</p>
                       <p className="mt-0.5 text-[11px] text-zinc-600">
                         {key === todayKey ? "Aujourd'hui" : key}
                       </p>
@@ -538,7 +474,6 @@ export function SocialPlanner() {
                     <div className="grid gap-2 p-2">
                       {daySlots.map((slot) => {
                         const assignedIdea = ideaForSlot(slot.id);
-
                         return (
                           <div
                             key={slot.id}
@@ -550,9 +485,7 @@ export function SocialPlanner() {
                               </p>
                               <span
                                 className={`h-2 w-2 rounded-full ${
-                                  slot.format === "short"
-                                    ? "bg-sky-400"
-                                    : "bg-zinc-500"
+                                  slot.format === "short" ? "bg-sky-400" : "bg-zinc-500"
                                 }`}
                               />
                             </div>
@@ -577,10 +510,8 @@ export function SocialPlanner() {
                               <label className="mt-3 block">
                                 <select
                                   value=""
-                                  onChange={(event) => {
-                                    if (event.target.value) {
-                                      assignSlot(event.target.value, slot.id);
-                                    }
+                                  onChange={(e) => {
+                                    if (e.target.value) assignSlot(e.target.value, slot.id);
                                   }}
                                   className="h-8 w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 text-xs text-zinc-400 outline-none transition-colors focus:border-zinc-600"
                                 >
@@ -614,9 +545,7 @@ function Metric({ label, value }: { label: string; value: number }) {
   return (
     <div className="min-w-24 rounded-lg border border-zinc-800/80 bg-zinc-950/60 px-4 py-3">
       <p className="text-lg font-medium text-white">{value}</p>
-      <p className="text-[11px] uppercase tracking-wider text-zinc-600">
-        {label}
-      </p>
+      <p className="text-[11px] uppercase tracking-wider text-zinc-600">{label}</p>
     </div>
   );
 }

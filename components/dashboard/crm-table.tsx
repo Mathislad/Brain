@@ -6,6 +6,11 @@ import { useRouter } from "next/navigation";
 import { StatusBadge, STATUS_LABELS } from "@/components/dashboard/status-badge";
 import { ProspectFormModal } from "@/components/dashboard/prospect-form-modal";
 import { deleteProspectAction } from "@/app/actions/prospects";
+import {
+  addDoNotCallAction,
+  getDoNotCallListAction,
+  removeDoNotCallAction,
+} from "@/app/actions/do-not-call";
 import type { ProspectStatus } from "@/lib/prospect-types";
 import type { Prospect } from "@/lib/prospects-db";
 
@@ -16,14 +21,13 @@ const TABS: { id: ProspectStatus; label: string }[] = [
 ];
 
 const ALL_NICHES = "__all__";
-const DO_NOT_CALL_STORAGE_KEY = "brain.crm.doNotCall.v1";
 
 interface DoNotCallEntry {
   id: string;
   phone: string;
   normalizedPhone: string;
-  note: string;
-  createdAt: string;
+  note: string | null;
+  createdAt: Date;
 }
 
 const COLUMNS = [
@@ -72,41 +76,12 @@ function TextCell({ value }: { value: string | null }) {
   );
 }
 
-function createLocalId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
 function normalizePhone(value: string | null | undefined) {
   const digits = (value ?? "").replace(/\D/g, "");
   if (!digits) return "";
   if (digits.startsWith("0033")) return `0${digits.slice(4)}`;
   if (digits.startsWith("33") && digits.length === 11) return `0${digits.slice(2)}`;
-
   return digits;
-}
-
-function loadDoNotCallEntries(): DoNotCallEntry[] {
-  try {
-    const raw = localStorage.getItem(DO_NOT_CALL_STORAGE_KEY);
-    if (!raw) return [];
-
-    const parsed = JSON.parse(raw) as DoNotCallEntry[];
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed
-      .map((entry) => ({
-        ...entry,
-        normalizedPhone: normalizePhone(entry.normalizedPhone || entry.phone),
-        note: entry.note ?? "",
-      }))
-      .filter((entry) => entry.normalizedPhone);
-  } catch {
-    return [];
-  }
 }
 
 function DeleteButton({ id }: { id: string }) {
@@ -156,32 +131,20 @@ function DeleteButton({ id }: { id: string }) {
 }
 
 export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<ProspectStatus>("TODO");
   const [selectedNiches, setSelectedNiches] = useState<string[]>([]);
   const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [doNotCallEntries, setDoNotCallEntries] = useState<DoNotCallEntry[]>([]);
-  const [doNotCallLoaded, setDoNotCallLoaded] = useState(false);
   const [newBlockedPhone, setNewBlockedPhone] = useState("");
   const [newBlockedNote, setNewBlockedNote] = useState("");
   const [phoneToCheck, setPhoneToCheck] = useState("");
+  const [isPendingDnc, startDncTransition] = useTransition();
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setDoNotCallEntries(loadDoNotCallEntries());
-      setDoNotCallLoaded(true);
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
+    getDoNotCallListAction().then(setDoNotCallEntries);
   }, []);
-
-  useEffect(() => {
-    if (!doNotCallLoaded) return;
-    localStorage.setItem(
-      DO_NOT_CALL_STORAGE_KEY,
-      JSON.stringify(doNotCallEntries),
-    );
-  }, [doNotCallEntries, doNotCallLoaded]);
 
   const niches = Array.from(
     new Set(
@@ -190,6 +153,7 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
         .filter((niche): niche is string => Boolean(niche)),
     ),
   ).sort((a, b) => a.localeCompare(b, "fr"));
+
   const statusFiltered = all.filter((p) => p.status === activeTab);
   const filtered =
     selectedNiches.length === 0
@@ -205,55 +169,34 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
       : statusFiltered.filter((p) => p.activite?.trim() === niche).length;
   const selectedNicheLabel = selectedNiches.join(", ");
   const doNotCallSet = useMemo(
-    () => new Set(doNotCallEntries.map((entry) => entry.normalizedPhone)),
+    () => new Set(doNotCallEntries.map((e) => e.normalizedPhone)),
     [doNotCallEntries],
   );
   const normalizedPhoneToCheck = normalizePhone(phoneToCheck);
   const checkMatch = normalizedPhoneToCheck
-    ? doNotCallEntries.find(
-        (entry) => entry.normalizedPhone === normalizedPhoneToCheck,
-      )
+    ? doNotCallEntries.find((e) => e.normalizedPhone === normalizedPhoneToCheck)
     : undefined;
 
   function addDoNotCallEntry(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalizedPhone = normalizePhone(newBlockedPhone);
-    if (!normalizedPhone) return;
-
-    setDoNotCallEntries((current) => {
-      const existing = current.find(
-        (entry) => entry.normalizedPhone === normalizedPhone,
-      );
-
-      if (existing) {
-        return current.map((entry) =>
-          entry.id === existing.id
-            ? {
-                ...entry,
-                phone: newBlockedPhone.trim(),
-                note: newBlockedNote.trim(),
-              }
-            : entry,
-        );
-      }
-
-      return [
-        {
-          id: createLocalId(),
-          phone: newBlockedPhone.trim(),
-          normalizedPhone,
-          note: newBlockedNote.trim(),
-          createdAt: new Date().toISOString(),
-        },
-        ...current,
-      ];
+    if (!newBlockedPhone.trim()) return;
+    startDncTransition(async () => {
+      await addDoNotCallAction(newBlockedPhone.trim(), newBlockedNote.trim());
+      const fresh = await getDoNotCallListAction();
+      setDoNotCallEntries(fresh);
+      setNewBlockedPhone("");
+      setNewBlockedNote("");
+      router.refresh();
     });
-    setNewBlockedPhone("");
-    setNewBlockedNote("");
   }
 
   function removeDoNotCallEntry(id: string) {
-    setDoNotCallEntries((current) => current.filter((entry) => entry.id !== id));
+    startDncTransition(async () => {
+      await removeDoNotCallAction(id);
+      const fresh = await getDoNotCallListAction();
+      setDoNotCallEntries(fresh);
+      router.refresh();
+    });
   }
 
   function toggleNiche(niche: string) {
@@ -261,10 +204,9 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
       setSelectedNiches([]);
       return;
     }
-
     setSelectedNiches((current) =>
       current.includes(niche)
-        ? current.filter((selected) => selected !== niche)
+        ? current.filter((s) => s !== niche)
         : [...current, niche],
     );
   }
@@ -290,7 +232,7 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
                 </span>
                 <input
                   value={phoneToCheck}
-                  onChange={(event) => setPhoneToCheck(event.target.value)}
+                  onChange={(e) => setPhoneToCheck(e.target.value)}
                   placeholder="+33 6 00 00 00 00"
                   className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-zinc-600"
                 />
@@ -305,10 +247,7 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
                   }`}
                 >
                   {checkMatch ? (
-                    <p>
-                      Numéro en liste rouge
-                      {checkMatch.note ? ` · ${checkMatch.note}` : ""}
-                    </p>
+                    <p>Numéro en liste rouge{checkMatch.note ? ` · ${checkMatch.note}` : ""}</p>
                   ) : normalizedPhoneToCheck ? (
                     <p>Numéro absent de la liste rouge.</p>
                   ) : (
@@ -325,30 +264,29 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
                     </span>
                     <input
                       value={newBlockedPhone}
-                      onChange={(event) => setNewBlockedPhone(event.target.value)}
+                      onChange={(e) => setNewBlockedPhone(e.target.value)}
                       placeholder="06 00 00 00 00"
                       className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-zinc-600"
                     />
                   </label>
-
                   <label className="grid gap-1.5">
                     <span className="text-xs font-medium uppercase tracking-wider text-zinc-600">
                       Note
                     </span>
                     <input
                       value={newBlockedNote}
-                      onChange={(event) => setNewBlockedNote(event.target.value)}
+                      onChange={(e) => setNewBlockedNote(e.target.value)}
                       placeholder="Refus, mauvais contact..."
                       className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-zinc-600"
                     />
                   </label>
                 </div>
-
                 <button
                   type="submit"
-                  className="h-10 rounded-lg bg-white px-4 text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-200"
+                  disabled={isPendingDnc}
+                  className="h-10 rounded-lg bg-white px-4 text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-200 disabled:opacity-50"
                 >
-                  Ajouter à la liste rouge
+                  {isPendingDnc ? "…" : "Ajouter à la liste rouge"}
                 </button>
               </form>
             </div>
@@ -372,12 +310,12 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-zinc-800 bg-zinc-900/60">
-                        {["Numéro", "Note", ""].map((heading) => (
+                        {["Numéro", "Note", ""].map((h) => (
                           <th
-                            key={heading}
+                            key={h}
                             className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500"
                           >
-                            {heading}
+                            {h}
                           </th>
                         ))}
                       </tr>
@@ -396,8 +334,9 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
                           <td className="px-4 py-3 text-right">
                             <button
                               type="button"
+                              disabled={isPendingDnc}
                               onClick={() => removeDoNotCallEntry(entry.id)}
-                              className="rounded px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-800 hover:text-red-400"
+                              className="rounded px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-800 hover:text-red-400 disabled:opacity-50"
                             >
                               Retirer
                             </button>
@@ -439,7 +378,6 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
               );
             })}
           </div>
-
           <button
             onClick={() => setShowCreate(true)}
             className="mb-1 ml-2 flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-800 px-2 py-1.5 text-sm text-zinc-400 transition-colors hover:border-zinc-600 hover:text-white sm:px-3"
@@ -517,101 +455,79 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
               <tbody className="divide-y divide-zinc-800/40">
                 {filtered.map((p) => {
                   const isDoNotCall = doNotCallSet.has(normalizePhone(p.telephone));
-
                   return (
-                  <tr
-                    key={p.id}
-                    className="bg-zinc-900/10 transition-colors hover:bg-zinc-800/20"
-                  >
-                    <Cell>
-                      <span className="text-sm text-zinc-300">
-                        {p.entreprise || <span className="text-zinc-700">—</span>}
-                      </span>
-                    </Cell>
-
-                    <Cell>
-                      <span className="font-medium text-white">
-                        {p.nom || <span className="text-zinc-700">—</span>}
-                      </span>
-                    </Cell>
-
-                    <TextCell value={p.activite} />
-
-                    <Cell>
-                      {p.telephone ? (
-                        <div className="flex flex-col gap-1">
-                          <a href={`tel:${p.telephone}`} className="text-zinc-400 transition-colors hover:text-white">
-                            {p.telephone}
+                    <tr
+                      key={p.id}
+                      className="bg-zinc-900/10 transition-colors hover:bg-zinc-800/20"
+                    >
+                      <Cell>
+                        <span className="text-sm text-zinc-300">
+                          {p.entreprise || <span className="text-zinc-700">—</span>}
+                        </span>
+                      </Cell>
+                      <Cell>
+                        <span className="font-medium text-white">
+                          {p.nom || <span className="text-zinc-700">—</span>}
+                        </span>
+                      </Cell>
+                      <TextCell value={p.activite} />
+                      <Cell>
+                        {p.telephone ? (
+                          <div className="flex flex-col gap-1">
+                            <a href={`tel:${p.telephone}`} className="text-zinc-400 transition-colors hover:text-white">
+                              {p.telephone}
+                            </a>
+                            {isDoNotCall && (
+                              <span className="w-fit rounded-full border border-red-900/50 bg-red-950/20 px-2 py-0.5 text-[11px] font-medium text-red-300">
+                                Liste rouge
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-zinc-700">—</span>
+                        )}
+                      </Cell>
+                      <Cell>
+                        {p.email ? (
+                          <a href={`mailto:${p.email}`} className="text-zinc-400 transition-colors hover:text-white">
+                            {p.email}
                           </a>
-                          {isDoNotCall && (
-                            <span className="w-fit rounded-full border border-red-900/50 bg-red-950/20 px-2 py-0.5 text-[11px] font-medium text-red-300">
-                              Liste rouge
-                            </span>
-                          )}
+                        ) : (
+                          <span className="text-zinc-700">—</span>
+                        )}
+                      </Cell>
+                      <Cell><ExternalLink url={p.siteInternet} label="Voir" /></Cell>
+                      <TextCell value={p.prochaineAction} />
+                      <TextCell value={p.derniereAction} />
+                      <Cell><ExternalLink url={p.instagram} label="Instagram" /></Cell>
+                      <Cell><ExternalLink url={p.facebook} label="Facebook" /></Cell>
+                      <Cell><ExternalLink url={p.linkedin} label="LinkedIn" /></Cell>
+                      <Cell><StatusBadge recordId={p.id} status={p.status} /></Cell>
+                      <Cell>
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                          p.provenance === "CSV"
+                            ? "bg-blue-950/50 text-blue-400"
+                            : "bg-zinc-800 text-zinc-400"
+                        }`}>
+                          {p.provenance ?? "App"}
+                        </span>
+                      </Cell>
+                      <Cell>
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            onClick={() => setEditingProspect(p)}
+                            className="rounded p-1 text-zinc-700 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+                            title="Modifier"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                          </button>
+                          <DeleteButton id={p.id} />
                         </div>
-                      ) : (
-                        <span className="text-zinc-700">—</span>
-                      )}
-                    </Cell>
-
-                    <Cell>
-                      {p.email ? (
-                        <a href={`mailto:${p.email}`} className="text-zinc-400 transition-colors hover:text-white">
-                          {p.email}
-                        </a>
-                      ) : (
-                        <span className="text-zinc-700">—</span>
-                      )}
-                    </Cell>
-
-                    <Cell>
-                      <ExternalLink url={p.siteInternet} label="Voir" />
-                    </Cell>
-
-                    <TextCell value={p.prochaineAction} />
-                    <TextCell value={p.derniereAction} />
-
-                    <Cell>
-                      <ExternalLink url={p.instagram} label="Instagram" />
-                    </Cell>
-                    <Cell>
-                      <ExternalLink url={p.facebook} label="Facebook" />
-                    </Cell>
-                    <Cell>
-                      <ExternalLink url={p.linkedin} label="LinkedIn" />
-                    </Cell>
-
-                    <Cell>
-                      <StatusBadge recordId={p.id} status={p.status} />
-                    </Cell>
-
-                    <Cell>
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                        p.provenance === "CSV"
-                          ? "bg-blue-950/50 text-blue-400"
-                          : "bg-zinc-800 text-zinc-400"
-                      }`}>
-                        {p.provenance ?? "App"}
-                      </span>
-                    </Cell>
-
-                    {/* Actions */}
-                    <Cell>
-                      <div className="flex items-center gap-0.5">
-                        <button
-                          onClick={() => setEditingProspect(p)}
-                          className="rounded p-1 text-zinc-700 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
-                          title="Modifier"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                        </button>
-                        <DeleteButton id={p.id} />
-                      </div>
-                    </Cell>
-                  </tr>
+                      </Cell>
+                    </tr>
                   );
                 })}
               </tbody>
@@ -626,7 +542,6 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
           onClose={() => setShowCreate(false)}
         />
       )}
-
       {editingProspect && (
         <ProspectFormModal
           prospect={editingProspect}
