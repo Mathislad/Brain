@@ -34,6 +34,7 @@ const MONEY_KEYS = new Set([
   "mensualite",
   "mensualite_depart",
   "mensualite_suite",
+  "total_mensuel",
 ]);
 
 type RGB = readonly [number, number, number];
@@ -58,6 +59,11 @@ function dateFr(date: Date) {
     month: "long",
     year: "numeric",
   }).format(date);
+}
+
+function fieldDateFr(value: string) {
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? value : dateFr(date);
 }
 
 const WIN_ANSI: Record<string, number> = {
@@ -318,7 +324,17 @@ export function generateDocumentPdf(document: PdfDocument) {
         const value = getData(document, field.key);
         return (
           value &&
-          !["prestation", "inclus", "conditions", "validite", "delai"].includes(field.key)
+          ![
+            "prestation",
+            "inclus",
+            "conditions",
+            "validite",
+            "delai",
+            "echeance",
+            "mentions",
+            "clauses",
+            "signature",
+          ].includes(field.key)
         );
       })
       .map((field) => ({
@@ -351,17 +367,55 @@ export function generateDocumentPdf(document: PdfDocument) {
 
   y += 8;
   ensureSpace(120);
-  canvas.text("Conditions", MARGIN, y, 13, BLUE, "F2");
+  const isInvoice = document.type === "FACTURE";
+  const isContract = document.type === "CONTRAT";
+  canvas.text(
+    isInvoice ? "Paiement" : isContract ? "Clauses & signature" : "Conditions",
+    MARGIN,
+    y,
+    13,
+    BLUE,
+    "F2",
+  );
   y += 20;
   const validity = getData(document, "validite");
   const delay = getData(document, "delai");
+  const dueDate = getData(document, "echeance");
+  const mentions = getData(document, "mentions");
   const conditions = getData(document, "conditions");
-  labelValue("Validité", validity ? `${validity} jours` : "-", MARGIN, 210);
+  const clauses = getData(document, "clauses");
+  const signature = getData(document, "signature");
+  if (isInvoice) {
+    labelValue("Échéance", dueDate ? fieldDateFr(dueDate) : "-", MARGIN, 210);
+  } else if (isContract) {
+    const startDate = getData(document, "date_debut");
+    const endDate = getData(document, "date_fin");
+    const billingMode = getData(document, "mode_facturation");
+    if (startDate) labelValue("Date de début", fieldDateFr(startDate), MARGIN, 210);
+    if (endDate) labelValue("Date de fin", fieldDateFr(endDate), MARGIN, 210);
+    if (billingMode) labelValue("Facturation", billingMode, MARGIN, PAGE_WIDTH - MARGIN * 2);
+  } else {
+    labelValue("Validité", validity ? `${validity} jours` : "-", MARGIN, 210);
+  }
   if (delay) labelValue("Délai", delay, MARGIN, PAGE_WIDTH - MARGIN * 2);
+  if (mentions) {
+    canvas.text("Mentions", MARGIN, y, 8, GREY, "F2");
+    y += 13;
+    paragraph(mentions, MARGIN, PAGE_WIDTH - MARGIN * 2, 9, BLACK);
+  }
   if (conditions) {
     canvas.text("Garantie / conditions", MARGIN, y, 8, GREY, "F2");
     y += 13;
     paragraph(conditions, MARGIN, PAGE_WIDTH - MARGIN * 2, 9, BLACK);
+  }
+  if (clauses) {
+    canvas.text("Clauses principales", MARGIN, y, 8, GREY, "F2");
+    y += 13;
+    paragraph(clauses, MARGIN, PAGE_WIDTH - MARGIN * 2, 9, BLACK);
+  }
+  if (signature) {
+    y += 8;
+    labelValue("Signature", signature, MARGIN, PAGE_WIDTH - MARGIN * 2);
   }
 
   ensureSpace(80);

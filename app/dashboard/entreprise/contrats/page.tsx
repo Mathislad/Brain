@@ -94,12 +94,22 @@ export default async function ContratsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <Link
-                      href={`/dashboard/entreprise/contrats/${c.id}`}
-                      className="text-xs text-zinc-500 transition-colors hover:text-white"
-                    >
-                      Détails →
-                    </Link>
+                    <div className="flex items-center justify-end gap-2">
+                      <a
+                        href={`/api/contrats/${c.id}/pdf`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-zinc-500 transition-colors hover:text-white"
+                      >
+                        PDF
+                      </a>
+                      <Link
+                        href={`/dashboard/entreprise/contrats/${c.id}`}
+                        className="text-xs text-zinc-500 transition-colors hover:text-white"
+                      >
+                        Détails →
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

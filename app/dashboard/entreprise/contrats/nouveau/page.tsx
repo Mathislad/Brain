@@ -279,7 +279,7 @@ function AnnexeSection({ title, children }: { title: string; children: React.Rea
 function StepAnnexe({ form, set }: { form: FormState; set: (k: keyof FormState, v: string) => void }) {
   const s = form.services_souscrits;
   if (s.length === 0) {
-    return <p className="text-sm text-zinc-500">Aucun service sélectionné à l'étape 2.</p>;
+    return <p className="text-sm text-zinc-500">Aucun service sélectionné à l&apos;étape 2.</p>;
   }
   return (
     <div className="grid gap-5">
@@ -442,13 +442,12 @@ export default function NouveauContratPage() {
           body: JSON.stringify(payload),
         });
 
-        if (res.headers.get("Content-Type")?.includes("application/vnd")) {
-          // Fallback direct download (pas de storage)
+        if (res.headers.get("Content-Type")?.includes("application/pdf")) {
           const blob = await res.blob();
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = url;
-          a.download = `contrat_${form.client_nom}.docx`;
+          a.download = `contrat_${form.client_nom}.pdf`;
           a.click();
           const id = res.headers.get("X-Contrat-Id");
           if (id) router.push(`/dashboard/entreprise/contrats/${id}`);
@@ -537,7 +536,7 @@ export default function NouveauContratPage() {
             disabled={isPending}
             className="h-10 rounded-lg bg-white px-6 text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-200 disabled:opacity-50"
           >
-            {isPending ? "Génération…" : "Générer le contrat"}
+            {isPending ? "Génération…" : "Générer le PDF"}
           </button>
         )}
       </div>

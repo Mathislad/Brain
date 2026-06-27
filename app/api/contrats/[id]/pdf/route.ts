@@ -1,10 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
-import {
-  createContratAction,
-  type ContratFormData,
-} from "@/app/actions/contrats";
+import type { ContratFormData } from "@/app/actions/contrats";
 import { generateContratPdf } from "@/lib/contrat-pdf";
+import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -20,36 +18,34 @@ function safeFilename(value: string) {
     .slice(0, 80);
 }
 
-export async function POST(req: NextRequest) {
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
 
-  let formData: ContratFormData;
-  try {
-    formData = (await req.json()) as ContratFormData;
-  } catch {
-    return NextResponse.json({ error: "JSON invalide" }, { status: 400 });
+  const { id } = await params;
+  const contrat = await prisma.contrat.findFirst({
+    where: { id, userId: user.id },
+  });
+
+  if (!contrat) {
+    return NextResponse.json({ error: "Contrat introuvable" }, { status: 404 });
   }
 
-  let contratId: string;
-  try {
-    contratId = await createContratAction(formData);
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
-  }
-
+  const formData = contrat.formData as unknown as ContratFormData;
   const pdf = generateContratPdf(formData);
-  const filename = `contrat_${safeFilename(formData.client_nom || "client")}.pdf`;
+  const filename = `contrat_${safeFilename(contrat.clientNom || "client")}.pdf`;
 
   return new NextResponse(pdf, {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `inline; filename="${filename}"`,
       "Cache-Control": "private, no-store",
-      "X-Contrat-Id": contratId,
     },
   });
 }

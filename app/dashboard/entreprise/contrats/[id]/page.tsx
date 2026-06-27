@@ -43,7 +43,6 @@ export default function ContratDetailPage() {
   const [contrat, setContrat] = useState<Contrat>(null);
   const [notes, setNotes] = useState("");
   const [isPending, startTransition] = useTransition();
-  const [regenerating, setRegenerating] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
@@ -76,32 +75,6 @@ export default function ContratDetailPage() {
     });
   }
 
-  async function regenerate() {
-    if (!contrat) return;
-    setRegenerating(true);
-    try {
-      const res = await fetch("/api/contrats/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(fd),
-      });
-
-      if (res.headers.get("Content-Type")?.includes("application/vnd")) {
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `contrat_${contrat.clientNom}_v2.docx`;
-        a.click();
-      } else {
-        const data = await res.json();
-        if (data.downloadUrl) window.open(data.downloadUrl, "_blank");
-      }
-    } finally {
-      setRegenerating(false);
-    }
-  }
-
   function doDelete() {
     startTransition(async () => {
       await deleteContratAction(id);
@@ -131,14 +104,14 @@ export default function ContratDetailPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={regenerate}
-            disabled={regenerating}
+          <a
+            href={`/api/contrats/${contrat.id}/pdf`}
+            target="_blank"
+            rel="noreferrer"
             className="h-9 rounded-lg border border-zinc-700 px-4 text-sm text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white disabled:opacity-50"
           >
-            {regenerating ? "Génération…" : "Régénérer .docx"}
-          </button>
+            Télécharger PDF
+          </a>
           {confirmDelete ? (
             <>
               <button type="button" onClick={doDelete} disabled={isPending} className="h-9 rounded-lg border border-red-900/60 px-4 text-sm text-red-400 transition-colors hover:bg-red-950/30 disabled:opacity-50">
@@ -266,19 +239,17 @@ export default function ContratDetailPage() {
             </div>
           </section>
 
-          {contrat.storagePath && (
-            <section className="rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-5">
-              <h2 className="mb-3 text-sm font-medium text-zinc-300">Fichier</h2>
-              <button
-                type="button"
-                onClick={regenerate}
-                disabled={regenerating}
-                className="w-full h-9 rounded-lg bg-white text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-200 disabled:opacity-50"
-              >
-                Télécharger .docx
-              </button>
-            </section>
-          )}
+          <section className="rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-5">
+            <h2 className="mb-3 text-sm font-medium text-zinc-300">Fichier</h2>
+            <a
+              href={`/api/contrats/${contrat.id}/pdf`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-9 w-full items-center justify-center rounded-lg bg-white text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-200"
+            >
+              Télécharger PDF
+            </a>
+          </section>
         </div>
       </div>
     </div>

@@ -96,6 +96,20 @@ const GARANTIE_FIELD: TemplateField = {
     "Sans engagement : vous arrêtez quand vous voulez. Garantie résultat : si nous ne sommes pas à la hauteur, nous travaillons gratuitement jusqu'à atteindre les résultats promis.",
 };
 
+const ECHEANCE_FIELD: TemplateField = {
+  key: "echeance",
+  label: "Date d'échéance",
+  type: "date",
+};
+
+const FACTURE_MENTIONS_FIELD: TemplateField = {
+  key: "mentions",
+  label: "Mentions / conditions de paiement",
+  type: "textarea",
+  defaultValue:
+    "Paiement à réception de facture. Mentions légales à adapter selon votre régime de TVA.",
+};
+
 function f5lFidelisationTemplate(
   id: string,
   name: string,
@@ -142,6 +156,55 @@ function f5lFidelisationTemplate(
       DELAI_FIELD,
       VALIDITE_FIELD,
       GARANTIE_FIELD,
+    ],
+  };
+}
+
+function f5lFidelisationInvoiceTemplate(
+  id: string,
+  name: string,
+  monthly: string,
+  setup: string,
+  included: string,
+): DocumentTemplate {
+  return {
+    id,
+    kind: "FACTURE",
+    name: `F5L Fidélisation - ${name}`,
+    description: `${name} : ${monthly} €/mois, installation ${setup} €.`,
+    defaultTitle: `Facture F5L Fidélisation - ${name}`,
+    amountFieldKey: "installation",
+    fields: [
+      {
+        key: "prestation",
+        label: "Offre facturée",
+        type: "text",
+        required: true,
+        defaultValue: `F5L Fidélisation - ${name}`,
+      },
+      {
+        key: "inclus",
+        label: "Détail",
+        type: "textarea",
+        required: true,
+        defaultValue: included,
+      },
+      {
+        key: "installation",
+        label: "Installation HT (€)",
+        type: "number",
+        required: true,
+        defaultValue: setup,
+      },
+      {
+        key: "mensualite",
+        label: "Mensualité HT (€)",
+        type: "number",
+        required: true,
+        defaultValue: monthly,
+      },
+      ECHEANCE_FIELD,
+      FACTURE_MENTIONS_FIELD,
     ],
   };
 }
@@ -343,6 +406,181 @@ export const DOCUMENT_TEMPLATES: DocumentTemplate[] = [
       { key: "conditions", label: "Conditions", type: "textarea", placeholder: "Acompte 30%…" },
     ],
   },
+  f5lFidelisationInvoiceTemplate(
+    "facture-f5l-fidelisation-essentiel",
+    "Essentiel",
+    "149",
+    "299",
+    "Site web, CRM et relances clients automatiques.",
+  ),
+  f5lFidelisationInvoiceTemplate(
+    "facture-f5l-fidelisation-croissance",
+    "Croissance",
+    "299",
+    "499",
+    "Essentiel + carte de fidélité numérique + référencement SEO.",
+  ),
+  f5lFidelisationInvoiceTemplate(
+    "facture-f5l-fidelisation-premium",
+    "Premium",
+    "599",
+    "799",
+    "Croissance + répondeur téléphonique IA + réservation en ligne.",
+  ),
+  {
+    id: "facture-f5l-campagne-test-45j",
+    kind: "FACTURE",
+    name: "F5L Campagne test 45 jours",
+    description: "Campagne ciblée Meta ou Google, page dédiée et bilan chiffré.",
+    defaultTitle: "Facture F5L Campagne test 45 jours",
+    amountFieldKey: "installation",
+    fields: [
+      {
+        key: "prestation",
+        label: "Offre facturée",
+        type: "text",
+        required: true,
+        defaultValue: "Campagne test 45 jours",
+      },
+      {
+        key: "inclus",
+        label: "Détail",
+        type: "textarea",
+        required: true,
+        defaultValue:
+          "1 campagne ciblée Meta ou Google : publicité, page dédiée, suivi des demandes et bilan chiffré.",
+      },
+      {
+        key: "installation",
+        label: "Installation HT (€)",
+        type: "number",
+        required: true,
+        defaultValue: "390",
+      },
+      {
+        key: "budget_pub",
+        label: "Budget publicitaire",
+        type: "text",
+        defaultValue: "Budget publicitaire facturé séparément ou réglé directement par le client.",
+      },
+      ECHEANCE_FIELD,
+      FACTURE_MENTIONS_FIELD,
+    ],
+  },
+  {
+    id: "facture-f5l-acquisition-complete",
+    kind: "FACTURE",
+    name: "F5L Acquisition complète",
+    description: "Meta + Google, pages dédiées, CRM, suivi et reporting mensuel.",
+    defaultTitle: "Facture F5L Acquisition complète",
+    amountFieldKey: "mensualite_depart",
+    fields: [
+      {
+        key: "prestation",
+        label: "Offre facturée",
+        type: "text",
+        required: true,
+        defaultValue: "Système complet F5L Acquisition",
+      },
+      {
+        key: "inclus",
+        label: "Détail",
+        type: "textarea",
+        required: true,
+        defaultValue:
+          "Publicités Meta + Google, pages dédiées, CRM, suivi de chaque demande de devis et reporting mensuel.",
+      },
+      {
+        key: "mensualite_depart",
+        label: "Mensualité HT - 3 premiers mois (€)",
+        type: "number",
+        required: true,
+        defaultValue: "1500",
+      },
+      {
+        key: "mensualite_suite",
+        label: "Mensualité HT ensuite (€)",
+        type: "number",
+        required: true,
+        defaultValue: "3000",
+      },
+      ECHEANCE_FIELD,
+      FACTURE_MENTIONS_FIELD,
+    ],
+  },
+  {
+    id: "facture-f5l-site-seo",
+    kind: "FACTURE",
+    name: "Complément - Site web SEO",
+    description: "Site web professionnel optimisé SEO, livré sous 7 jours.",
+    defaultTitle: "Facture Site web professionnel optimisé SEO",
+    amountFieldKey: "installation",
+    fields: [
+      {
+        key: "prestation",
+        label: "Offre facturée",
+        type: "text",
+        required: true,
+        defaultValue: "Site web professionnel optimisé SEO",
+      },
+      {
+        key: "inclus",
+        label: "Détail",
+        type: "textarea",
+        required: true,
+        defaultValue: "Site professionnel optimisé SEO, livré sous 7 jours.",
+      },
+      {
+        key: "installation",
+        label: "Création HT (€)",
+        type: "number",
+        required: true,
+        defaultValue: "499",
+      },
+      {
+        key: "mensualite",
+        label: "Hébergement / maintenance HT (€ / mois)",
+        type: "number",
+        required: true,
+        defaultValue: "24",
+      },
+      ECHEANCE_FIELD,
+      FACTURE_MENTIONS_FIELD,
+    ],
+  },
+  {
+    id: "facture-f5l-repondeur-ia",
+    kind: "FACTURE",
+    name: "Complément - Répondeur téléphonique IA",
+    description: "Répondeur IA pour ne plus rater d'appels.",
+    defaultTitle: "Facture Répondeur téléphonique IA",
+    amountFieldKey: "mensualite",
+    fields: [
+      {
+        key: "prestation",
+        label: "Offre facturée",
+        type: "text",
+        required: true,
+        defaultValue: "Répondeur téléphonique IA",
+      },
+      {
+        key: "inclus",
+        label: "Détail",
+        type: "textarea",
+        required: true,
+        defaultValue: "Répondeur téléphonique IA pour ne plus rater aucun appel.",
+      },
+      {
+        key: "mensualite",
+        label: "Mensualité HT (€)",
+        type: "number",
+        required: true,
+        defaultValue: "99",
+      },
+      ECHEANCE_FIELD,
+      FACTURE_MENTIONS_FIELD,
+    ],
+  },
   {
     id: "facture-standard",
     kind: "FACTURE",
@@ -354,6 +592,74 @@ export const DOCUMENT_TEMPLATES: DocumentTemplate[] = [
       MONTANT_FIELD,
       { key: "echeance", label: "Date d'échéance", type: "date" },
       { key: "mentions", label: "Mentions légales", type: "textarea", placeholder: "TVA non applicable, art. 293 B du CGI…" },
+    ],
+  },
+  {
+    id: "contrat-f5l-abonnement",
+    kind: "CONTRAT",
+    name: "Contrat d'abonnement F5L",
+    description: "Contrat mensuel F5L avec services, durée, paiement et clauses.",
+    defaultTitle: "Contrat d'abonnement F5L",
+    amountFieldKey: "total_mensuel",
+    fields: [
+      {
+        key: "objet",
+        label: "Objet du contrat",
+        type: "textarea",
+        required: true,
+        defaultValue:
+          "Prestations de services numériques dans le cadre d'un abonnement mensuel F5L.",
+      },
+      {
+        key: "services",
+        label: "Services souscrits",
+        type: "textarea",
+        required: true,
+        defaultValue:
+          "Services digitaux F5L : site internet, CRM, relances clients, fidélisation, publicité, IA ou autres modules selon l'offre retenue.",
+      },
+      {
+        key: "total_mensuel",
+        label: "Total mensuel HT (€)",
+        type: "number",
+        required: true,
+        placeholder: "299",
+      },
+      {
+        key: "duree",
+        label: "Durée",
+        type: "text",
+        defaultValue: "1 mois, sans engagement au-delà de la période initiale.",
+      },
+      {
+        key: "date_debut",
+        label: "Date de début",
+        type: "date",
+      },
+      {
+        key: "date_fin",
+        label: "Date de fin",
+        type: "date",
+      },
+      {
+        key: "mode_facturation",
+        label: "Mode de facturation",
+        type: "text",
+        defaultValue: "Début de mois pour le mois à venir.",
+      },
+      {
+        key: "clauses",
+        label: "Clauses principales",
+        type: "textarea",
+        defaultValue:
+          "Le Prestataire est tenu à une obligation de moyens. Le Client s'engage à fournir les accès, contenus et validations nécessaires. Les budgets publicitaires restent à la charge du Client. Chaque Partie s'engage à préserver la confidentialité des informations échangées. Le Client certifie avoir informé ses propres clients de la transmission éventuelle de leurs données au Prestataire, conformément au RGPD.",
+      },
+      {
+        key: "signature",
+        label: "Lieu et date de signature",
+        type: "text",
+        defaultValue: "Fait à Lantriac, le ____ / ____ / ______.",
+      },
     ],
   },
   {
