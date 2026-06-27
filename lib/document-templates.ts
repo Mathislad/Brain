@@ -25,6 +25,7 @@ export type TemplateField = {
   type: TemplateFieldType;
   required?: boolean;
   placeholder?: string;
+  defaultValue?: string;
 };
 
 export type DocumentTemplate = {
@@ -32,6 +33,7 @@ export type DocumentTemplate = {
   kind: DocumentKind;
   name: string;
   description: string;
+  defaultTitle?: string;
   /** Champ servant de montant principal (centimes), s'il existe. */
   amountFieldKey?: string;
   fields: TemplateField[];
@@ -71,8 +73,258 @@ const MONTANT_FIELD: TemplateField = {
   placeholder: "1500",
 };
 
-// Templates de démarrage — remplace / complète librement.
+const VALIDITE_FIELD: TemplateField = {
+  key: "validite",
+  label: "Validité du devis (jours)",
+  type: "number",
+  placeholder: "30",
+  defaultValue: "30",
+};
+
+const DELAI_FIELD: TemplateField = {
+  key: "delai",
+  label: "Délai de démarrage",
+  type: "text",
+  defaultValue: "Démarrage sous 7 à 14 jours selon l'offre.",
+};
+
+const GARANTIE_FIELD: TemplateField = {
+  key: "conditions",
+  label: "Conditions / garantie",
+  type: "textarea",
+  defaultValue:
+    "Sans engagement : vous arrêtez quand vous voulez. Garantie résultat : si nous ne sommes pas à la hauteur, nous travaillons gratuitement jusqu'à atteindre les résultats promis.",
+};
+
+function f5lFidelisationTemplate(
+  id: string,
+  name: string,
+  monthly: string,
+  setup: string,
+  included: string,
+): DocumentTemplate {
+  return {
+    id,
+    kind: "DEVIS",
+    name: `F5L Fidélisation - ${name}`,
+    description: `${name} : ${monthly} €/mois, installation ${setup} €.`,
+    defaultTitle: `Devis F5L Fidélisation - ${name}`,
+    amountFieldKey: "installation",
+    fields: [
+      {
+        key: "prestation",
+        label: "Offre",
+        type: "text",
+        required: true,
+        defaultValue: `F5L Fidélisation - ${name}`,
+      },
+      {
+        key: "inclus",
+        label: "Inclus",
+        type: "textarea",
+        required: true,
+        defaultValue: included,
+      },
+      {
+        key: "installation",
+        label: "Installation HT (€)",
+        type: "number",
+        required: true,
+        defaultValue: setup,
+      },
+      {
+        key: "mensualite",
+        label: "Mensualité HT (€)",
+        type: "number",
+        required: true,
+        defaultValue: monthly,
+      },
+      DELAI_FIELD,
+      VALIDITE_FIELD,
+      GARANTIE_FIELD,
+    ],
+  };
+}
+
+// Templates de démarrage + offres F5L issues de la plaquette client.
 export const DOCUMENT_TEMPLATES: DocumentTemplate[] = [
+  f5lFidelisationTemplate(
+    "devis-f5l-fidelisation-essentiel",
+    "Essentiel",
+    "149",
+    "299",
+    "Site web, CRM et relances clients automatiques.",
+  ),
+  f5lFidelisationTemplate(
+    "devis-f5l-fidelisation-croissance",
+    "Croissance",
+    "299",
+    "499",
+    "Essentiel + carte de fidélité numérique + référencement SEO.",
+  ),
+  f5lFidelisationTemplate(
+    "devis-f5l-fidelisation-premium",
+    "Premium",
+    "599",
+    "799",
+    "Croissance + répondeur téléphonique IA + réservation en ligne.",
+  ),
+  {
+    id: "devis-f5l-campagne-test-45j",
+    kind: "DEVIS",
+    name: "F5L Campagne test 45 jours",
+    description: "Campagne ciblée Meta ou Google, page dédiée et bilan chiffré.",
+    defaultTitle: "Devis F5L Campagne test 45 jours",
+    amountFieldKey: "installation",
+    fields: [
+      {
+        key: "prestation",
+        label: "Offre",
+        type: "text",
+        required: true,
+        defaultValue: "Campagne test 45 jours",
+      },
+      {
+        key: "inclus",
+        label: "Inclus",
+        type: "textarea",
+        required: true,
+        defaultValue:
+          "1 campagne ciblée Meta ou Google : publicité, page dédiée, suivi des demandes et bilan chiffré.",
+      },
+      {
+        key: "installation",
+        label: "Installation HT (€)",
+        type: "number",
+        required: true,
+        defaultValue: "390",
+      },
+      {
+        key: "budget_pub",
+        label: "Budget publicitaire",
+        type: "text",
+        defaultValue: "Budget publicitaire à prévoir en supplément.",
+      },
+      DELAI_FIELD,
+      VALIDITE_FIELD,
+      GARANTIE_FIELD,
+    ],
+  },
+  {
+    id: "devis-f5l-acquisition-complete",
+    kind: "DEVIS",
+    name: "F5L Acquisition complète",
+    description: "Meta + Google, pages dédiées, CRM, suivi et reporting mensuel.",
+    defaultTitle: "Devis F5L Acquisition complète",
+    amountFieldKey: "mensualite_depart",
+    fields: [
+      {
+        key: "prestation",
+        label: "Offre",
+        type: "text",
+        required: true,
+        defaultValue: "Système complet F5L Acquisition",
+      },
+      {
+        key: "inclus",
+        label: "Inclus",
+        type: "textarea",
+        required: true,
+        defaultValue:
+          "Publicités Meta + Google, pages dédiées, CRM, suivi de chaque demande de devis et reporting mensuel.",
+      },
+      {
+        key: "mensualite_depart",
+        label: "Mensualité HT - 3 premiers mois (€)",
+        type: "number",
+        required: true,
+        defaultValue: "1500",
+      },
+      {
+        key: "mensualite_suite",
+        label: "Mensualité HT ensuite (€)",
+        type: "number",
+        required: true,
+        defaultValue: "3000",
+      },
+      DELAI_FIELD,
+      VALIDITE_FIELD,
+      GARANTIE_FIELD,
+    ],
+  },
+  {
+    id: "devis-f5l-site-seo",
+    kind: "DEVIS",
+    name: "Complément - Site web SEO",
+    description: "Site web professionnel optimisé SEO, livré sous 7 jours.",
+    defaultTitle: "Devis Site web professionnel optimisé SEO",
+    amountFieldKey: "installation",
+    fields: [
+      {
+        key: "prestation",
+        label: "Offre",
+        type: "text",
+        required: true,
+        defaultValue: "Site web professionnel optimisé SEO",
+      },
+      {
+        key: "inclus",
+        label: "Inclus",
+        type: "textarea",
+        required: true,
+        defaultValue: "Site professionnel optimisé SEO, livré sous 7 jours.",
+      },
+      {
+        key: "installation",
+        label: "Création HT (€)",
+        type: "number",
+        required: true,
+        defaultValue: "499",
+      },
+      {
+        key: "mensualite",
+        label: "Hébergement / maintenance HT (€ / mois)",
+        type: "number",
+        required: true,
+        defaultValue: "24",
+      },
+      VALIDITE_FIELD,
+      GARANTIE_FIELD,
+    ],
+  },
+  {
+    id: "devis-f5l-repondeur-ia",
+    kind: "DEVIS",
+    name: "Complément - Répondeur téléphonique IA",
+    description: "Répondeur IA pour ne plus rater d'appels.",
+    defaultTitle: "Devis Répondeur téléphonique IA",
+    amountFieldKey: "mensualite",
+    fields: [
+      {
+        key: "prestation",
+        label: "Offre",
+        type: "text",
+        required: true,
+        defaultValue: "Répondeur téléphonique IA",
+      },
+      {
+        key: "inclus",
+        label: "Inclus",
+        type: "textarea",
+        required: true,
+        defaultValue: "Répondeur téléphonique IA pour ne plus rater aucun appel.",
+      },
+      {
+        key: "mensualite",
+        label: "Mensualité HT (€)",
+        type: "number",
+        required: true,
+        defaultValue: "99",
+      },
+      VALIDITE_FIELD,
+      GARANTIE_FIELD,
+    ],
+  },
   {
     id: "devis-standard",
     kind: "DEVIS",

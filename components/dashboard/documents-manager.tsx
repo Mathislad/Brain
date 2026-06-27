@@ -264,13 +264,23 @@ function DocumentRow({ doc }: { doc: DocumentListItem }) {
         </select>
       </td>
       <td className="px-4 py-3 text-right">
-        <button
-          onClick={remove}
-          disabled={isPending}
-          className="rounded px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-800 hover:text-red-400 disabled:opacity-50"
-        >
-          Supprimer
-        </button>
+        <div className="flex justify-end gap-1">
+          <a
+            href={`/api/documents/${doc.id}/pdf`}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded px-2 py-1 text-xs text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-white"
+          >
+            PDF
+          </a>
+          <button
+            onClick={remove}
+            disabled={isPending}
+            className="rounded px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-800 hover:text-red-400 disabled:opacity-50"
+          >
+            Supprimer
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -278,6 +288,16 @@ function DocumentRow({ doc }: { doc: DocumentListItem }) {
 
 const INPUT =
   "w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-zinc-600";
+
+function defaultFieldsForTemplate(templateId: string) {
+  const template = getTemplate(templateId);
+  if (!template) return {};
+  return Object.fromEntries(
+    template.fields
+      .filter((field) => field.defaultValue !== undefined)
+      .map((field) => [field.key, field.defaultValue ?? ""]),
+  );
+}
 
 function CreateDocumentModal({
   prospects,
@@ -289,13 +309,18 @@ function CreateDocumentModal({
   const router = useRouter();
   const [kind, setKind] = useState<DocumentKind>("DEVIS");
   const templates = getTemplatesByKind(kind);
-  const [templateId, setTemplateId] = useState(templates[0]?.id ?? "");
+  const initialTemplateId = templates[0]?.id ?? "";
+  const [templateId, setTemplateId] = useState(initialTemplateId);
   const [prospectId, setProspectId] = useState(prospects[0]?.id ?? "");
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(
+    () => getTemplate(initialTemplateId)?.defaultTitle ?? "",
+  );
   const [issuedAt, setIssuedAt] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
-  const [fields, setFields] = useState<Record<string, string>>({});
+  const [fields, setFields] = useState<Record<string, string>>(() =>
+    defaultFieldsForTemplate(initialTemplateId),
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -305,7 +330,8 @@ function CreateDocumentModal({
     setKind(k);
     const first = getTemplatesByKind(k)[0];
     setTemplateId(first?.id ?? "");
-    setFields({});
+    setTitle(first?.defaultTitle ?? "");
+    setFields(first ? defaultFieldsForTemplate(first.id) : {});
   }
 
   function submit(e: React.FormEvent) {
@@ -416,7 +442,8 @@ function CreateDocumentModal({
                       type="button"
                       onClick={() => {
                         setTemplateId(t.id);
-                        setFields({});
+                        setTitle(t.defaultTitle ?? "");
+                        setFields(defaultFieldsForTemplate(t.id));
                       }}
                       className={`block w-full rounded-lg border px-3 py-2 text-left transition-colors ${
                         templateId === t.id
