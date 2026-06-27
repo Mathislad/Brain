@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { Sidebar } from "@/components/dashboard/sidebar";
+import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { getProspectsWithClientDetails } from "@/lib/clients-db";
+import type { ClientWithLinks } from "@/lib/client-types";
 import { getCurrentUser } from "@/lib/session";
 
 export const metadata: Metadata = {
@@ -23,11 +25,21 @@ export default async function DashboardLayout({
   const userName =
     (user.user_metadata?.name as string | undefined) ?? "";
   const userEmail = user.email ?? "";
+  let clientRecords: ClientWithLinks[] = [];
+
+  try {
+    clientRecords = await getProspectsWithClientDetails(user.id);
+  } catch {
+    clientRecords = [];
+  }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar userEmail={userEmail} userName={userName} />
-      <main className="flex-1 overflow-y-auto">{children}</main>
-    </div>
+    <DashboardShell
+      clientRecords={clientRecords}
+      userEmail={userEmail}
+      userName={userName}
+    >
+      {children}
+    </DashboardShell>
   );
 }

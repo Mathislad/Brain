@@ -413,15 +413,15 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
         </section>
 
         {/* Onglets + bouton Nouveau */}
-        <div className="flex items-end justify-between border-b border-zinc-800">
-          <div className="flex items-end">
+        <div className="flex items-center border-b border-zinc-800">
+          <div className="flex min-w-0 flex-1 items-end overflow-x-auto">
             {TABS.map((tab) => {
               const active = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`-mb-px border-b-2 px-5 py-2.5 text-sm font-medium transition-colors ${
+                  className={`-mb-px shrink-0 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors sm:px-5 ${
                     active
                       ? "border-white text-white"
                       : "border-transparent text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
@@ -442,10 +442,10 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
 
           <button
             onClick={() => setShowCreate(true)}
-            className="mb-1 flex items-center gap-1.5 rounded-lg border border-zinc-800 px-3 py-1.5 text-sm text-zinc-400 transition-colors hover:border-zinc-600 hover:text-white"
+            className="mb-1 ml-2 flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-800 px-2 py-1.5 text-sm text-zinc-400 transition-colors hover:border-zinc-600 hover:text-white sm:px-3"
           >
             <span className="text-base leading-none">+</span>
-            Nouveau prospect
+            <span className="hidden sm:inline">Nouveau prospect</span>
           </button>
         </div>
 

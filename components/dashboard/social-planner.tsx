@@ -239,7 +239,7 @@ export function SocialPlanner() {
   const totalPublished = ideas.filter((idea) => idea.steps.publication).length;
 
   return (
-    <div className="px-8 py-10">
+    <div className="px-4 py-8 sm:px-8 sm:py-10">
       <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs uppercase tracking-widest text-zinc-600">

@@ -12,7 +12,7 @@ export default async function SettingsPage() {
     (user.user_metadata?.name as string | undefined) ?? "";
 
   return (
-    <div className="mx-auto max-w-xl px-8 py-12">
+    <div className="mx-auto max-w-xl px-4 py-8 sm:px-8 sm:py-12">
       <div className="mb-10">
         <p className="text-xs uppercase tracking-widest text-zinc-600">
           Paramètres

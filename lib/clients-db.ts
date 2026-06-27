@@ -48,6 +48,19 @@ export async function getClientsWithLinks(userId: string) {
   });
 }
 
+/** Tous les prospects avec les informations utilisées par la fiche client. */
+export async function getProspectsWithClientDetails(userId: string) {
+  return prisma.prospect.findMany({
+    where: { userId },
+    orderBy: [{ entreprise: "asc" }, { nom: "asc" }],
+    include: {
+      links: { orderBy: { createdAt: "asc" } },
+      payments: { orderBy: { paidAt: "desc" } },
+      documents: { orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }] },
+    },
+  });
+}
+
 export async function addClientLink(userId: string, data: ClientLinkInput) {
   if (!isClientLinkCategory(data.category)) {
     throw new Error("Catégorie de lien invalide.");

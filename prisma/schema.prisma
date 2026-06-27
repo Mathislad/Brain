@@ -51,6 +51,7 @@ model Prospect {
 
   links          ClientLink[]
   documents      Document[]
+  sites          Site[]
 
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -137,4 +138,50 @@ model Document {
   @@index([userId])
   @@index([prospectId])
   @@index([userId, type])
+}
+
+// ─── CMS « Site internet » ──────────────────────────────────────────────────
+// Site = back-office du site d'un client. Le site live (construit séparément)
+// lit ce contenu via l'API publique /api/public/site/[slug].
+model Site {
+  id         String   @id @default(cuid())
+  userId     String              // propriétaire F5L
+  prospectId String?             // lien optionnel vers la fiche client (Prospect)
+
+  name       String
+  slug       String   @unique    // identifiant public pour l'API
+  domain     String?             // domaine du site live (futur: restreindre le CORS)
+  logoUrl    String?
+  published  Boolean  @default(true)
+
+  items      SiteItem[]
+  prospect   Prospect? @relation(fields: [prospectId], references: [id], onDelete: SetNull)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+  @@index([slug])
+}
+
+model SiteItem {
+  id          String   @id @default(cuid())
+  userId      String
+  siteId      String
+
+  type        String   // "OFFER" | "PRODUCT"
+  title       String
+  description String?
+  price       Int?     // en centimes
+  imageUrl    String?
+  order       Int      @default(0)
+  visible     Boolean  @default(true)
+
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([siteId])
 }

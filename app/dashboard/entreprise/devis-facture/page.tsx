@@ -39,7 +39,7 @@ export default async function DevisFacturePage() {
   }));
 
   return (
-    <div className="px-8 py-10">
+    <div className="px-4 py-8 sm:px-8 sm:py-10">
       <div className="mb-8">
         <p className="text-xs uppercase tracking-widest text-zinc-600">
           Entreprise

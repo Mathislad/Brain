@@ -50,7 +50,7 @@ export default async function CrmPage() {
   }
 
   return (
-    <div className="px-8 py-10">
+    <div className="px-4 py-8 sm:px-8 sm:py-10">
       {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
