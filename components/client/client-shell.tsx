@@ -20,6 +20,12 @@ export function ClientShell({ orgName, userEmail, features, children }: Props) {
   const NAV = [
     { label: "Accueil",    href: "/client", always: true },
     { label: "Services",   href: "/client/services", always: true },
+    { label: "Site",       href: "/client/site-internet", always: true },
+    { label: "Meta",       href: "/client/meta-ads", always: true },
+    { label: "Google",     href: "/client/google-ads", always: true },
+    { label: "CRM",        href: "/client/crm", always: true },
+    { label: "IA",         href: "/client/agents-ia", always: true },
+    { label: "Automations", href: "/client/automatisations", always: true },
     { label: "Documents",  href: "/client/documents", feature: "documents" as FeatureKey },
     { label: "Abonnement", href: "/client/billing", feature: "billing" as FeatureKey },
     { label: "Support",    href: "/client/support", always: true },

@@ -61,6 +61,7 @@ const navGroups: NavGroup[] = [
     label: "Administratif",
     items: [
       { label: "Client", href: "/dashboard/entreprise/client" },
+      { label: "Demandes client", href: "/dashboard/entreprise/demandes" },
       {
         label: "Devis, facture et contrats",
         href: "/dashboard/entreprise/devis-facture",

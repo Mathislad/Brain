@@ -1,52 +1,26 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { requireClient } from "@/lib/auth/roles";
+import { formatDate, getPortalServices, serviceLabels, statusLabels } from "@/lib/f5l-portal";
 
 export const metadata: Metadata = {
   title: "Services",
 };
 
-const services = [
-  {
-    title: "Site internet",
-    status: "En suivi",
-    progress: "Base opérationnelle",
-    details: ["Pages de conversion", "Formulaires", "Connexion CRM à finaliser"],
-  },
-  {
-    title: "Meta Ads",
-    status: "À connecter",
-    progress: "Préparation des accès",
-    details: ["Business Manager", "Créatifs", "Suivi des leads"],
-  },
-  {
-    title: "Google Ads",
-    status: "À connecter",
-    progress: "Structure prête",
-    details: ["Campagnes Search", "Mots-clés", "Conversions"],
-  },
-  {
-    title: "CRM / leads",
-    status: "Préparé",
-    progress: "Pipeline initial",
-    details: ["Nouveaux leads", "Relances", "Statuts d'avancement"],
-  },
-  {
-    title: "Automatisations",
-    status: "Préparé",
-    progress: "Workflows à brancher",
-    details: ["Notifications", "Rappels", "Synchronisations"],
-  },
-  {
-    title: "Agents IA",
-    status: "Préparé",
-    progress: "Cas d'usage à valider",
-    details: ["Qualification", "Support", "Préparation de briefs"],
-  },
-];
+const detailHref: Record<string, string> = {
+  website: "/client/site-internet",
+  meta_ads: "/client/meta-ads",
+  google_ads: "/client/google-ads",
+  crm: "/client/crm",
+  ai_agent: "/client/agents-ia",
+  automation: "/client/automatisations",
+  support: "/client/support",
+};
 
 export default async function ClientServicesPage() {
   const { organization } = await requireClient();
+  const services = await getPortalServices(organization.id);
 
   return (
     <div className="grid gap-8">
@@ -60,24 +34,31 @@ export default async function ClientServicesPage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         {services.map((service) => (
-          <article key={service.title} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-5">
+          <article key={service.id} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-medium text-white">{service.title}</h2>
-                <p className="mt-1 text-sm text-zinc-500">{service.progress}</p>
+                <h2 className="text-lg font-medium text-white">{service.name || serviceLabels[service.type]}</h2>
+                <p className="mt-1 text-sm text-zinc-500">{service.description}</p>
               </div>
               <span className="rounded-lg border border-zinc-800 px-2.5 py-1 text-xs text-zinc-400">
-                {service.status}
+                {statusLabels[service.status] ?? service.status}
               </span>
             </div>
-            <div className="mt-5 grid gap-2">
-              {service.details.map((detail) => (
-                <div key={detail} className="flex items-center gap-3 text-sm text-zinc-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400/70" />
-                  {detail}
-                </div>
-              ))}
+            <div className="mt-5">
+              <div className="h-2 overflow-hidden rounded-full bg-zinc-900">
+                <div className="h-full rounded-full bg-cyan-400/80" style={{ width: `${service.progress}%` }} />
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-4 text-xs text-zinc-600">
+                <span>{service.progress}% complété</span>
+                <span>Mis à jour le {formatDate(service.updatedAt)}</span>
+              </div>
             </div>
+            <Link
+              href={detailHref[service.type] ?? "/client/support"}
+              className="mt-5 inline-flex h-9 items-center rounded-lg border border-zinc-700 px-3 text-xs text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
+            >
+              Voir le détail
+            </Link>
           </article>
         ))}
       </div>

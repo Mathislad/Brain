@@ -2,16 +2,8 @@ import Link from "next/link";
 
 import { getMyDocumentsAction } from "@/app/actions/organizations";
 import { requireClient } from "@/lib/auth/roles";
+import { getPortalOverview, serviceLabels, statusLabels } from "@/lib/f5l-portal";
 import { offerLabel } from "@/lib/offers";
-
-const serviceSnapshot = [
-  { label: "Site internet", status: "En suivi", detail: "Structure, pages et demandes entrantes" },
-  { label: "Meta Ads", status: "À connecter", detail: "Campagnes, budget et créatifs" },
-  { label: "Google Ads", status: "À connecter", detail: "Recherche, mots-clés et conversions" },
-  { label: "CRM / leads", status: "Préparé", detail: "Pipeline et prochaines relances" },
-  { label: "Automatisations", status: "Préparé", detail: "Notifications et actions récurrentes" },
-  { label: "Agents IA", status: "Préparé", detail: "Assistants métier et qualification" },
-];
 
 const nextActions = [
   { done: true, label: "Espace client activé", note: "Accès F5L Brain opérationnel" },
@@ -22,8 +14,9 @@ const nextActions = [
 export default async function ClientDashboard() {
   const { organization, user } = await requireClient();
   const documents = await getMyDocumentsAction();
+  const overview = await getPortalOverview(organization.id, user.id);
   const billing = organization.billing;
-  const activeServices = serviceSnapshot.filter((service) => service.status !== "À connecter").length;
+  const activeServices = overview.activeCount;
 
   return (
     <div className="grid gap-8">
@@ -55,8 +48,8 @@ export default async function ClientDashboard() {
         />
         <StatusCard
           label="Services"
-          value={`${activeServices}/${serviceSnapshot.length}`}
-          sub="modules préparés"
+          value={`${activeServices}/${overview.services.length}`}
+          sub="services actifs"
           accent="cyan"
         />
         <StatusCard
@@ -78,13 +71,13 @@ export default async function ClientDashboard() {
           </Link>
         </div>
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {serviceSnapshot.map((service) => (
-            <div key={service.label} className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
+          {overview.services.slice(0, 6).map((service) => (
+            <div key={service.id} className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-medium text-white">{service.label}</p>
+                <p className="text-sm font-medium text-white">{service.name || serviceLabels[service.type]}</p>
                 <ServiceStatus status={service.status} />
               </div>
-              <p className="mt-2 text-xs leading-5 text-zinc-500">{service.detail}</p>
+              <p className="mt-2 text-xs leading-5 text-zinc-500">{service.description}</p>
             </div>
           ))}
         </div>
@@ -132,6 +125,18 @@ export default async function ClientDashboard() {
           )}
         </section>
       </div>
+
+      <section className="rounded-lg border border-zinc-800/80 bg-zinc-950/60 p-6">
+        <h2 className="mb-4 text-base font-medium text-white">Notifications</h2>
+        <div className="grid gap-3">
+          {overview.notifications.map((notification) => (
+            <div key={notification.id} className="rounded-lg border border-zinc-800/70 p-4">
+              <p className="text-sm font-medium text-white">{notification.title}</p>
+              <p className="mt-1 text-xs leading-5 text-zinc-500">{notification.message}</p>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
@@ -163,8 +168,8 @@ function StatusCard({
 }
 
 function ServiceStatus({ status }: { status: string }) {
-  const isReady = status === "En suivi";
-  const isPrepared = status === "Préparé";
+  const isReady = status === "active";
+  const isPrepared = status === "planned";
   return (
     <span
       className={`rounded-lg border px-2 py-0.5 text-[11px] ${
@@ -175,7 +180,7 @@ function ServiceStatus({ status }: { status: string }) {
             : "border-zinc-800 text-zinc-500"
       }`}
     >
-      {status}
+      {statusLabels[status] ?? status}
     </span>
   );
 }

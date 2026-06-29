@@ -338,6 +338,17 @@ model Organization {
   invitations    ClientInvitation[]
   documents      ClientDocument[]
   features       OrganizationFeature[]
+  services       F5lService[]
+  websiteProjects WebsiteProject[]
+  adAccounts     AdAccount[]
+  adCampaigns    AdCampaign[]
+  crmPipelineStages CrmPipelineStage[]
+  crmLeads       CrmLead[]
+  automations    ClientAutomation[]
+  aiAgents       AiAgent[]
+  aiAgentLogs    AiAgentLog[]
+  requests       ClientRequest[]
+  notifications  ClientNotification[]
 
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
@@ -412,6 +423,7 @@ model OrganizationBilling {
 model ClientDocument {
   id              String       @id @default(cuid())
   organizationId  String
+  serviceId       String?
   title           String
   description     String?
   category        String?      // contrat | facture | brief | livrable | suivi
@@ -423,11 +435,13 @@ model ClientDocument {
   uploadedBy      String?      // userId
 
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  service         F5lService?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
 
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
   @@index([organizationId])
+  @@index([serviceId])
   @@index([organizationId, visibleToClient])
 }
 
@@ -443,4 +457,251 @@ model OrganizationFeature {
 
   @@unique([organizationId, featureKey])
   @@index([organizationId])
+}
+
+model F5lService {
+  id             String          @id @default(cuid())
+  organizationId String
+
+  // website | meta_ads | google_ads | crm | ai_agent | automation | support
+  type           String
+  name           String
+  status         String          @default("planned") // planned | active | paused | done | attention
+  progress       Int             @default(0)
+  description    String?
+  startedAt      DateTime?
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  websiteProjects WebsiteProject[]
+  adCampaigns    AdCampaign[]
+  documents      ClientDocument[]
+
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, type])
+  @@index([organizationId, status])
+}
+
+model WebsiteProject {
+  id                String        @id @default(cuid())
+  organizationId    String
+  serviceId         String?
+
+  domain            String?
+  previewUrl        String?
+  productionUrl     String?
+  status            String        @default("planned")
+  currentStep       String?
+  progress          Int           @default(0)
+  contentStatus     String        @default("waiting")
+  designStatus      String        @default("planned")
+  developmentStatus String        @default("planned")
+  deploymentStatus  String        @default("planned")
+
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  service           F5lService?   @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  tasks             WebsiteTask[]
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([organizationId])
+  @@index([serviceId])
+  @@index([organizationId, status])
+}
+
+model WebsiteTask {
+  id               String         @id @default(cuid())
+  websiteProjectId String
+  title            String
+  status           String         @default("todo")
+  assignedTo       String?
+  dueDate          DateTime?
+
+  websiteProject   WebsiteProject @relation(fields: [websiteProjectId], references: [id], onDelete: Cascade)
+
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([websiteProjectId])
+  @@index([websiteProjectId, status])
+}
+
+model AdAccount {
+  id                String       @id @default(cuid())
+  organizationId    String
+  platform          String       // meta | google
+  accountName       String
+  externalAccountId String?
+  status            String       @default("pending")
+
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, platform])
+}
+
+model AdCampaign {
+  id             String       @id @default(cuid())
+  organizationId String
+  serviceId      String?
+  platform       String       // meta | google
+  name           String
+  status         String       @default("draft")
+  objective      String?
+  budget         Int?         // centimes
+  spend          Int?         // centimes
+  leads          Int          @default(0)
+  cpl            Int?         // centimes
+  impressions    Int          @default(0)
+  clicks         Int          @default(0)
+  conversions    Int          @default(0)
+  startDate      DateTime?
+  endDate        DateTime?
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  service        F5lService?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([serviceId])
+  @@index([organizationId, platform])
+  @@index([organizationId, status])
+}
+
+model CrmPipelineStage {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  position       Int          @default(0)
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, position])
+}
+
+model CrmLead {
+  id             String       @id @default(cuid())
+  organizationId String
+  fullName       String
+  email          String?
+  phone          String?
+  source         String?
+  status         String       @default("new")
+  value          Int?         // centimes
+  lastContactAt  DateTime?
+  nextActionAt   DateTime?
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, createdAt])
+}
+
+model ClientAutomation {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  type           String
+  status         String       @default("planned")
+  description    String?
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+}
+
+model AiAgent {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  role           String
+  status         String       @default("planned")
+  description    String?
+  lastActivityAt DateTime?
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  logs           AiAgentLog[]
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+}
+
+model AiAgentLog {
+  id             String       @id @default(cuid())
+  agentId        String?
+  organizationId String
+  type           String
+  content        String
+  status         String       @default("done")
+
+  agent          AiAgent?     @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime     @default(now())
+
+  @@index([agentId])
+  @@index([organizationId])
+  @@index([organizationId, createdAt])
+}
+
+model ClientRequest {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String?
+  category       String
+  title          String
+  description    String
+  status         String       @default("open") // open | in_progress | waiting_client | done
+  priority       String       @default("normal")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([userId])
+}
+
+model ClientNotification {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String?
+  title          String
+  message        String
+  readAt         DateTime?
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([organizationId, readAt])
 }
