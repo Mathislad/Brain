@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { signOutAction } from "@/app/actions/auth";
+import { signOutClientAction } from "@/app/actions/auth";
 
 interface Props {
   orgName: string;
@@ -51,7 +51,7 @@ export function ClientShell({ orgName, userEmail, children }: Props) {
           {/* User */}
           <div className="flex items-center gap-3">
             <span className="hidden text-xs text-zinc-600 sm:inline">{userEmail}</span>
-            <form action={signOutAction}>
+            <form action={signOutClientAction}>
               <button
                 type="submit"
                 className="text-xs text-zinc-600 transition-colors hover:text-zinc-300"

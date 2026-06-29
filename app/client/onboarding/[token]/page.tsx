@@ -25,25 +25,23 @@ export default async function OnboardingPage({ params }: Props) {
 
   if (!inv) notFound();
 
-  if (inv.tokenExpiresAt < new Date() && inv.status === "pending") {
-    // Marque expirée
+  // Normalise le statut : variable locale synchronisée avec la mise à jour BDD
+  let status = inv.status;
+  if (inv.tokenExpiresAt < new Date() && status === "pending") {
     await prisma.clientInvitation.update({
       where: { id: inv.id },
       data: { status: "expired" },
     });
+    status = "expired";
   }
 
-  if (inv.status === "completed") {
-    return (
-      <AlreadyCompletedPage orgName={inv.organization.name} />
-    );
+  if (status === "completed") {
+    return <AlreadyCompletedPage orgName={inv.organization.name} />;
   }
-
-  if (inv.status === "expired" || (inv.tokenExpiresAt < new Date())) {
+  if (status === "expired" || inv.tokenExpiresAt < new Date()) {
     return <ExpiredPage />;
   }
-
-  if (inv.status === "revoked") {
+  if (status === "revoked") {
     return <RevokedPage />;
   }
 

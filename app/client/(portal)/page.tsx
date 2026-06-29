@@ -11,7 +11,6 @@ export default async function ClientDashboard() {
 
   return (
     <div className="grid gap-8">
-      {/* Accueil */}
       <div>
         <p className="text-xs uppercase tracking-widest text-zinc-600">Espace client</p>
         <h1 className="mt-1 text-2xl font-medium tracking-tight text-white">
@@ -20,14 +19,8 @@ export default async function ClientDashboard() {
         <p className="mt-1 text-sm text-zinc-500">{organization.name}</p>
       </div>
 
-      {/* Statut */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatusCard
-          label="Espace"
-          value="Actif"
-          sub="F5L Brain"
-          accent="emerald"
-        />
+        <StatusCard label="Espace"   value="Actif"  sub="F5L Brain" accent="emerald" />
         <StatusCard
           label="Offre"
           value={billing?.offerKey ? offerLabel(billing.offerKey) : "—"}
@@ -42,7 +35,6 @@ export default async function ClientDashboard() {
         />
       </div>
 
-      {/* Prochaines étapes (statique V1) */}
       <section className="rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-6">
         <h2 className="mb-4 text-sm font-medium text-zinc-300">Prochaines étapes</h2>
         <div className="grid gap-3">
@@ -67,7 +59,6 @@ export default async function ClientDashboard() {
         </div>
       </section>
 
-      {/* Documents récents */}
       {documents.length > 0 && (
         <section className="rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-6">
           <div className="mb-4 flex items-center justify-between">
@@ -91,14 +82,10 @@ export default async function ClientDashboard() {
   );
 }
 
-function StatusCard({
-  label, value, sub, accent,
-}: { label: string; value: string; sub: string; accent: "emerald" | "blue" | "zinc" }) {
-  const colors = {
-    emerald: "border-emerald-900/40 bg-emerald-950/20",
-    blue:    "border-blue-900/40 bg-blue-950/20",
-    zinc:    "border-zinc-800 bg-zinc-900/40",
-  };
+function StatusCard({ label, value, sub, accent }: {
+  label: string; value: string; sub: string; accent: "emerald" | "blue" | "zinc"
+}) {
+  const colors = { emerald: "border-emerald-900/40 bg-emerald-950/20", blue: "border-blue-900/40 bg-blue-950/20", zinc: "border-zinc-800 bg-zinc-900/40" };
   return (
     <div className={`rounded-xl border p-4 ${colors[accent]}`}>
       <p className="text-xs uppercase tracking-wider text-zinc-600">{label}</p>
@@ -109,9 +96,7 @@ function StatusCard({
 }
 
 function DocRow({ doc }: { doc: { id: string; title: string; category: string | null; createdAt: Date; externalUrl: string | null } }) {
-  const CATEGORY_LABELS: Record<string, string> = {
-    contrat: "Contrat", facture: "Facture", brief: "Brief", livrable: "Livrable", suivi: "Suivi",
-  };
+  const CATEGORY_LABELS: Record<string, string> = { contrat: "Contrat", facture: "Facture", brief: "Brief", livrable: "Livrable", suivi: "Suivi" };
   return (
     <div className="flex items-center justify-between rounded-lg border border-zinc-800/40 px-4 py-2.5">
       <div>
@@ -122,8 +107,7 @@ function DocRow({ doc }: { doc: { id: string; title: string; category: string | 
         </p>
       </div>
       {doc.externalUrl && (
-        <a href={doc.externalUrl} target="_blank" rel="noreferrer"
-          className="text-xs text-zinc-500 transition-colors hover:text-white">
+        <a href={doc.externalUrl} target="_blank" rel="noreferrer" className="text-xs text-zinc-500 transition-colors hover:text-white">
           Ouvrir →
         </a>
       )}

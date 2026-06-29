@@ -9,13 +9,12 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function ClientLayout({ children }: { children: React.ReactNode }) {
-  const { user, organization } = await requireClient().catch(() => {
-    redirect("/client/login");
-  }) as Awaited<ReturnType<typeof requireClient>>;
+export default async function ClientPortalLayout({ children }: { children: React.ReactNode }) {
+  const result = await requireClient().catch(() => null);
+  if (!result) redirect("/client/login");
 
   return (
-    <ClientShell orgName={organization.name} userEmail={user.email ?? ""}>
+    <ClientShell orgName={result.organization.name} userEmail={result.user.email ?? ""}>
       {children}
     </ClientShell>
   );

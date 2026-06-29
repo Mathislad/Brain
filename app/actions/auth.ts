@@ -13,3 +13,10 @@ export async function signOutAction() {
   revalidatePath("/", "layout");
   redirect("/login");
 }
+
+export async function signOutClientAction() {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  revalidatePath("/", "layout");
+  redirect("/client/login");
+}

@@ -7,10 +7,10 @@ import { createClient } from "@/lib/supabase/client";
 
 export default function ClientLoginPage() {
   const router = useRouter();
-  const [email, setEmail]     = useState("");
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError]     = useState<string | null>(null);
-  const [isPending, start]    = useTransition();
+  const [error, setError]       = useState<string | null>(null);
+  const [isPending, start]      = useTransition();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -25,7 +25,6 @@ export default function ClientLoginPage() {
         return;
       }
 
-      // Le layout /client vérifiera le rôle CLIENT et redirigera si besoin
       router.push("/client");
       router.refresh();
     });
