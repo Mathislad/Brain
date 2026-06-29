@@ -66,6 +66,7 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/entreprise/devis-facture",
         activePaths: ["/dashboard/entreprise/contrats"],
       },
+      { label: "Invitations", href: "/dashboard/entreprise/invitations" },
     ],
   },
 ];
