@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useState } from "react";
 
 import { Sidebar } from "@/components/dashboard/sidebar";
 import type { ClientWithLinks } from "@/lib/client-types";
@@ -21,11 +20,6 @@ export function DashboardShell({
   children,
 }: Props) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const pathname = usePathname();
-
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [pathname]);
 
   return (
     <div className="flex h-screen overflow-hidden">

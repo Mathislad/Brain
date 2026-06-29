@@ -258,7 +258,7 @@ export function SiteItemForm({ siteId, item, onClose }: Props) {
                 className="h-4 w-4 rounded border-zinc-700 bg-zinc-900"
               />
               <span className="text-sm text-zinc-300">
-                Visible sur le site (sinon masqué de l'API publique)
+                Visible sur le site (sinon masqué de l&apos;API publique)
               </span>
             </label>
 

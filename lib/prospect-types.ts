@@ -1,4 +1,4 @@
-export type ProspectStatus = "TODO" | "IN_PROGRESS" | "DONE";
+export type ProspectStatus = "TODO" | "IN_PROGRESS" | "DONE" | "CLIENT_ACTIF";
 
 export type ProspectFormData = {
   nom: string;

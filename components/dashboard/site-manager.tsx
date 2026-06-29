@@ -146,7 +146,7 @@ export function SiteManager({ sites, prospects, baseUrl }: Props) {
       <div>
         {!selectedSite ? (
           <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/20 px-6 py-16 text-center">
-            <p className="text-sm text-zinc-400">Aucun site pour l'instant.</p>
+            <p className="text-sm text-zinc-400">Aucun site pour l&apos;instant.</p>
             <p className="mt-1 text-xs text-zinc-600">
               Crée un site pour commencer à gérer son contenu.
             </p>
@@ -481,7 +481,7 @@ function SiteFormModal({
               className="h-4 w-4 rounded border-zinc-700 bg-zinc-900"
             />
             <span className="text-sm text-zinc-300">
-              Publié (visible via l'API publique)
+              Publié (visible via l&apos;API publique)
             </span>
           </label>
 

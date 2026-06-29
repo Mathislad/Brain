@@ -11,6 +11,13 @@ enum ProspectStatus {
   TODO
   IN_PROGRESS
   DONE
+  CLIENT_ACTIF
+}
+
+enum AppRole {
+  OWNER
+  ADMIN
+  CLIENT
 }
 
 model Prospect {
@@ -52,6 +59,7 @@ model Prospect {
   links          ClientLink[]
   documents      Document[]
   sites          Site[]
+  organization   Organization?
 
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -203,6 +211,24 @@ model LaunchConfig {
   @@index([userId])
 }
 
+// ─── Agenda — connexion Google Calendar ─────────────────────────────────────
+model GoogleCalendarConnection {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+
+  googleEmail  String?
+  accessToken  String
+  refreshToken String?
+  tokenType    String?
+  scope        String?
+  expiresAt    DateTime?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+}
+
 // ─── Contrats ────────────────────────────────────────────────────────────────
 model Contrat {
   id         String   @id @default(cuid())
@@ -289,4 +315,132 @@ model SiteItem {
 
   @@index([userId])
   @@index([siteId])
+}
+
+// ─── Portail client F5L Brain ────────────────────────────────────────────────
+
+model Organization {
+  id             String               @id @default(cuid())
+  name           String
+  type           String               @default("client")  // 'client' | 'internal'
+  status         String               @default("pending") // 'pending' | 'active' | 'suspended'
+  prospectId     String?              @unique
+
+  // Entité légale — renseignée/corrigée pendant l'onboarding, lue par devis/contrats
+  siret          String?
+  adresse        String?
+  formeJuridique String?
+  representant   String?
+
+  prospect       Prospect?            @relation(fields: [prospectId], references: [id], onDelete: SetNull)
+  members        OrganizationMember[]
+  billing        OrganizationBilling?
+  invitations    ClientInvitation[]
+  documents      ClientDocument[]
+  features       OrganizationFeature[]
+
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([prospectId])
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  role           AppRole      @default(CLIENT)
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model ClientInvitation {
+  id               String       @id @default(cuid())
+  organizationId   String
+  contactEmail     String
+  accessToken      String       @unique
+  tokenExpiresAt   DateTime
+  shortCodeSecret  String?      // hex 32 bytes — secret pour dériver le code TOTP-like
+  prefilledData    Json         @default("{}")  // offerKey, setupAmount, monthlyAmount, notesAdmin
+  status           String       @default("pending") // pending | in_progress | completed | expired | revoked
+  completedAt      DateTime?
+  codeValidatedAt  DateTime?
+  failedAttempts   Int          @default(0)
+  lockedUntil      DateTime?
+  createdBy        String?      // userId de l'admin
+
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([accessToken])
+  @@index([contactEmail])
+}
+
+model OrganizationBilling {
+  id                      String       @id @default(cuid())
+  organizationId          String       @unique
+  offerKey                String?
+  setupAmount             Int?         // en centimes
+  monthlyAmount           Int?         // en centimes
+  subscriptionStatus      String       @default("inactive") // inactive | pending | active | past_due | canceled
+
+  // Champs Stripe — préparés, vides en V1
+  stripeCustomerId        String?
+  stripeSubscriptionId    String?
+  stripeCheckoutSessionId String?
+
+  isSimulated             Boolean      @default(true)
+  activatedAt             DateTime?
+
+  organization            Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+}
+
+model ClientDocument {
+  id              String       @id @default(cuid())
+  organizationId  String
+  title           String
+  description     String?
+  category        String?      // contrat | facture | brief | livrable | suivi
+  storagePath     String?
+  externalUrl     String?
+  createdBy       String?      // userId
+  createdByRole   AppRole?
+  visibleToClient Boolean      @default(true)
+  uploadedBy      String?      // userId
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, visibleToClient])
+}
+
+model OrganizationFeature {
+  id              String       @id @default(cuid())
+  organizationId  String
+  featureKey      String       // documents | billing | crm | loyalty_card | ai_followup | acquisition | reservation
+  enabled         Boolean      @default(false)
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime     @default(now())
+
+  @@unique([organizationId, featureKey])
+  @@index([organizationId])
 }

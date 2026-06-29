@@ -20,6 +20,7 @@ interface Props {
 interface NavItem {
   label: string;
   href: string;
+  activePaths?: string[];
 }
 
 interface NavGroup {
@@ -29,40 +30,41 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    label: "Prospection",
+    label: "Data",
     items: [
       { label: "CRM", href: "/dashboard/prospection/crm" },
-      { label: "Cold Call", href: "/dashboard/prospection/cold-call" },
-      { label: "Réseaux sociaux", href: "/dashboard/prospection/reseaux-sociaux" },
+      { label: "Comptabilité", href: "/dashboard/entreprise/comptabilite" },
+      { label: "Prompt", href: "/dashboard/working/prompt" },
     ],
   },
   {
-    label: "Entreprise",
+    label: "Organisation",
     items: [
-      { label: "Contrats", href: "/dashboard/entreprise/contrats" },
-      { label: "Comptabilité", href: "/dashboard/entreprise/comptabilite" },
-      { label: "Devis & facture", href: "/dashboard/entreprise/devis-facture" },
-      { label: "Client", href: "/dashboard/entreprise/client" },
+      { label: "Todo liste", href: "/dashboard/working/todolist" },
+      { label: "Agenda", href: "/dashboard/organisation/agenda" },
+      {
+        label: "Système de réservation",
+        href: "/dashboard/module/systeme-reservation",
+      },
     ],
   },
   {
     label: "Outils",
     items: [
-      { label: "Todolist", href: "/dashboard/working/todolist" },
-      { label: "Prompt", href: "/dashboard/working/prompt" },
+      { label: "Cold Call", href: "/dashboard/prospection/cold-call" },
+      { label: "Réseaux sociaux", href: "/dashboard/prospection/reseaux-sociaux" },
       { label: "Site internet", href: "/dashboard/working/site-internet" },
       { label: "Lancement", href: "/dashboard/working/lancement" },
     ],
   },
   {
-    label: "Module",
+    label: "Administratif",
     items: [
-      { label: "Carte de fidélité", href: "/dashboard/module/carte-fidelite" },
-      { label: "Ads", href: "/dashboard/module/ads" },
-      { label: "Agent IA", href: "/dashboard/module/agent-ia" },
+      { label: "Client", href: "/dashboard/entreprise/client" },
       {
-        label: "Système de réservation",
-        href: "/dashboard/module/systeme-reservation",
+        label: "Devis, facture et contrats",
+        href: "/dashboard/entreprise/devis-facture",
+        activePaths: ["/dashboard/entreprise/contrats"],
       },
     ],
   },
@@ -93,8 +95,11 @@ function SidebarBody({
   userName,
   onLinkClick,
 }: BodyProps) {
-  function itemClass(href: string) {
-    const isActive = pathname === href || pathname.startsWith(href + "/");
+  function itemClass(item: NavItem) {
+    const paths = [item.href, ...(item.activePaths ?? [])];
+    const isActive = paths.some(
+      (href) => pathname === href || pathname.startsWith(href + "/"),
+    );
     return `flex items-center rounded-lg px-3 py-1.5 text-sm transition-colors ${
       isActive
         ? "bg-zinc-800 text-white"
@@ -117,7 +122,7 @@ function SidebarBody({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={itemClass(item.href)}
+                  className={itemClass(item)}
                   onClick={onLinkClick}
                 >
                   {item.label}
@@ -186,7 +191,7 @@ function SidebarBody({
             <Link
               key={item.href}
               href={item.href}
-              className={itemClass(item.href)}
+              className={itemClass(item)}
               onClick={onLinkClick}
             >
               {item.label}

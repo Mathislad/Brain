@@ -220,7 +220,7 @@ function DocumentsSummary({ client }: { client: ClientWithLinks }) {
 
       {docs.length === 0 ? (
         <p className="rounded-lg border border-dashed border-zinc-800/80 px-3 py-2.5 text-xs text-zinc-600">
-          Aucun document. Crée-en depuis Entreprise → Devis &amp; facture.
+          Aucun document. Crée-en depuis Administratif → Devis, facture et contrats.
         </p>
       ) : (
         <div className="space-y-1.5">

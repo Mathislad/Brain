@@ -27,7 +27,7 @@ export default async function ContratsPage() {
     <div className="px-4 py-8 sm:px-8 sm:py-10">
       <div className="mb-8 flex items-end justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-widest text-zinc-600">Entreprise</p>
+          <p className="text-xs uppercase tracking-widest text-zinc-600">Administratif</p>
           <h1 className="mt-1 text-2xl font-medium tracking-tight text-white">Contrats</h1>
           <p className="mt-1 text-sm text-zinc-500">
             {contrats.length} contrat{contrats.length !== 1 ? "s" : ""} générés.

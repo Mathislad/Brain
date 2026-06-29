@@ -10,15 +10,17 @@ export const STATUS_LABELS: Record<ProspectStatus, string> = {
   TODO: "Prospect",
   IN_PROGRESS: "Rendez-vous",
   DONE: "Client",
+  CLIENT_ACTIF: "Client actif",
 };
 
 const STYLES: Record<ProspectStatus, string> = {
   TODO: "border-zinc-700 bg-zinc-800 text-zinc-300",
   IN_PROGRESS: "border-yellow-900/50 bg-yellow-950/60 text-yellow-400",
   DONE: "border-emerald-900/50 bg-emerald-950/60 text-emerald-400",
+  CLIENT_ACTIF: "border-blue-900/50 bg-blue-950/60 text-blue-300",
 };
 
-const OPTIONS: ProspectStatus[] = ["TODO", "IN_PROGRESS", "DONE"];
+const OPTIONS: ProspectStatus[] = ["TODO", "IN_PROGRESS", "DONE", "CLIENT_ACTIF"];
 
 interface Props {
   recordId: string;

@@ -42,10 +42,10 @@ export default async function DevisFacturePage() {
     <div className="px-4 py-8 sm:px-8 sm:py-10">
       <div className="mb-8">
         <p className="text-xs uppercase tracking-widest text-zinc-600">
-          Entreprise
+          Administratif
         </p>
         <h1 className="mt-1 text-2xl font-medium tracking-tight text-white">
-          Devis &amp; facture
+          Devis, facture et contrats
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
           Devis, factures et contrats — classés par client et par date.
