@@ -1,31 +1,63 @@
 import Link from "next/link";
 
-import { requireClient } from "@/lib/auth/roles";
 import { getMyDocumentsAction } from "@/app/actions/organizations";
+import { requireClient } from "@/lib/auth/roles";
 import { offerLabel } from "@/lib/offers";
+
+const serviceSnapshot = [
+  { label: "Site internet", status: "En suivi", detail: "Structure, pages et demandes entrantes" },
+  { label: "Meta Ads", status: "À connecter", detail: "Campagnes, budget et créatifs" },
+  { label: "Google Ads", status: "À connecter", detail: "Recherche, mots-clés et conversions" },
+  { label: "CRM / leads", status: "Préparé", detail: "Pipeline et prochaines relances" },
+  { label: "Automatisations", status: "Préparé", detail: "Notifications et actions récurrentes" },
+  { label: "Agents IA", status: "Préparé", detail: "Assistants métier et qualification" },
+];
+
+const nextActions = [
+  { done: true, label: "Espace client activé", note: "Accès F5L Brain opérationnel" },
+  { done: false, label: "Centraliser les accès publicitaires", note: "Meta, Google et tracking" },
+  { done: false, label: "Valider les priorités du mois", note: "Actions proposées par votre conseiller F5L" },
+];
 
 export default async function ClientDashboard() {
   const { organization, user } = await requireClient();
   const documents = await getMyDocumentsAction();
   const billing = organization.billing;
+  const activeServices = serviceSnapshot.filter((service) => service.status !== "À connecter").length;
 
   return (
     <div className="grid gap-8">
-      <div>
-        <p className="text-xs uppercase tracking-widest text-zinc-600">Espace client</p>
-        <h1 className="mt-1 text-2xl font-medium tracking-tight text-white">
-          Bonjour{user.user_metadata?.name ? `, ${user.user_metadata.name}` : ""}
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500">{organization.name}</p>
+      <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-zinc-600">Espace client F5L Brain</p>
+          <h1 className="mt-2 text-3xl font-medium tracking-tight text-white">
+            Bonjour{user.user_metadata?.name ? `, ${user.user_metadata.name}` : ""}
+          </h1>
+          <p className="mt-2 text-sm text-zinc-500">
+            {organization.name} · suivez vos services, documents et prochaines actions.
+          </p>
+        </div>
+        <Link
+          href="/client/support"
+          className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-700 px-4 text-sm text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
+        >
+          Demander une action
+        </Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatusCard label="Espace"   value="Actif"  sub="F5L Brain" accent="emerald" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatusCard label="Portail" value="Actif" sub="Accès sécurisé" accent="emerald" />
         <StatusCard
           label="Offre"
-          value={billing?.offerKey ? offerLabel(billing.offerKey) : "—"}
+          value={billing?.offerKey ? offerLabel(billing.offerKey) : "À définir"}
           sub={billing?.subscriptionStatus === "active" ? "Abonnement actif" : "En attente"}
           accent={billing?.subscriptionStatus === "active" ? "blue" : "zinc"}
+        />
+        <StatusCard
+          label="Services"
+          value={`${activeServices}/${serviceSnapshot.length}`}
+          sub="modules préparés"
+          accent="cyan"
         />
         <StatusCard
           label="Documents"
@@ -35,59 +67,94 @@ export default async function ClientDashboard() {
         />
       </div>
 
-      <section className="rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-6">
-        <h2 className="mb-4 text-sm font-medium text-zinc-300">Prochaines étapes</h2>
-        <div className="grid gap-3">
-          {[
-            { done: true,  label: "Espace client activé" },
-            { done: false, label: "Accès aux livrables via Documents" },
-            { done: false, label: "Suivi de votre accompagnement mensuel" },
-          ].map((item, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] ${
-                item.done
-                  ? "border-emerald-900/60 bg-emerald-950/40 text-emerald-400"
-                  : "border-zinc-800 text-zinc-700"
-              }`}>
-                {item.done ? "✓" : ""}
+      <section className="rounded-lg border border-zinc-800/80 bg-zinc-950/60 p-6">
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-base font-medium text-white">Services F5L</h2>
+            <p className="mt-1 text-sm text-zinc-500">Vue synthétique de votre système d&apos;acquisition.</p>
+          </div>
+          <Link href="/client/services" className="text-sm text-zinc-500 transition-colors hover:text-white">
+            Détail
+          </Link>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {serviceSnapshot.map((service) => (
+            <div key={service.label} className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-white">{service.label}</p>
+                <ServiceStatus status={service.status} />
               </div>
-              <span className={`text-sm ${item.done ? "text-zinc-300" : "text-zinc-600"}`}>
-                {item.label}
-              </span>
+              <p className="mt-2 text-xs leading-5 text-zinc-500">{service.detail}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {documents.length > 0 && (
-        <section className="rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm font-medium text-zinc-300">Documents récents</h2>
-            <Link href="/client/documents" className="text-xs text-zinc-500 hover:text-white transition-colors">
-              Voir tout →
-            </Link>
-          </div>
-          <div className="grid gap-2">
-            {documents.slice(0, 3).map((doc) => (
-              <DocRow key={doc.id} doc={doc} />
+      <div className="grid gap-6 lg:grid-cols-[1fr_0.85fr]">
+        <section className="rounded-lg border border-zinc-800/80 bg-zinc-950/60 p-6">
+          <h2 className="mb-4 text-base font-medium text-white">Prochaines actions</h2>
+          <div className="grid gap-3">
+            {nextActions.map((item) => (
+              <div key={item.label} className="flex gap-3 rounded-lg border border-zinc-800/70 p-4">
+                <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] ${
+                  item.done
+                    ? "border-emerald-700/60 bg-emerald-950/40 text-emerald-300"
+                    : "border-zinc-700 text-zinc-700"
+                }`}>
+                  {item.done ? "✓" : ""}
+                </div>
+                <div>
+                  <p className={item.done ? "text-sm text-zinc-300" : "text-sm text-white"}>{item.label}</p>
+                  <p className="mt-0.5 text-xs text-zinc-600">{item.note}</p>
+                </div>
+              </div>
             ))}
           </div>
         </section>
-      )}
 
-      <p className="text-xs text-zinc-700">
-        Votre espace F5L Brain s&apos;enrichira progressivement selon les modules activés dans votre accompagnement.
-      </p>
+        <section className="rounded-lg border border-zinc-800/80 bg-zinc-950/60 p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-medium text-white">Documents récents</h2>
+            <Link href="/client/documents" className="text-sm text-zinc-500 transition-colors hover:text-white">
+              Voir tout
+            </Link>
+          </div>
+          {documents.length > 0 ? (
+            <div className="grid gap-2">
+              {documents.slice(0, 3).map((doc) => (
+                <DocRow key={doc.id} doc={doc} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-zinc-800 px-5 py-8 text-sm text-zinc-500">
+              Aucun document partagé pour le moment.
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
 
-function StatusCard({ label, value, sub, accent }: {
-  label: string; value: string; sub: string; accent: "emerald" | "blue" | "zinc"
+function StatusCard({
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  accent: "emerald" | "blue" | "cyan" | "zinc";
 }) {
-  const colors = { emerald: "border-emerald-900/40 bg-emerald-950/20", blue: "border-blue-900/40 bg-blue-950/20", zinc: "border-zinc-800 bg-zinc-900/40" };
+  const colors = {
+    emerald: "border-emerald-900/40 bg-emerald-950/20",
+    blue: "border-blue-900/40 bg-blue-950/20",
+    cyan: "border-cyan-900/40 bg-cyan-950/20",
+    zinc: "border-zinc-800 bg-zinc-900/40",
+  };
   return (
-    <div className={`rounded-xl border p-4 ${colors[accent]}`}>
+    <div className={`rounded-lg border p-4 ${colors[accent]}`}>
       <p className="text-xs uppercase tracking-wider text-zinc-600">{label}</p>
       <p className="mt-1 text-lg font-medium text-white">{value}</p>
       <p className="mt-0.5 text-xs text-zinc-500">{sub}</p>
@@ -95,20 +162,48 @@ function StatusCard({ label, value, sub, accent }: {
   );
 }
 
-function DocRow({ doc }: { doc: { id: string; title: string; category: string | null; createdAt: Date; externalUrl: string | null } }) {
-  const CATEGORY_LABELS: Record<string, string> = { contrat: "Contrat", facture: "Facture", brief: "Brief", livrable: "Livrable", suivi: "Suivi" };
+function ServiceStatus({ status }: { status: string }) {
+  const isReady = status === "En suivi";
+  const isPrepared = status === "Préparé";
   return (
-    <div className="flex items-center justify-between rounded-lg border border-zinc-800/40 px-4 py-2.5">
+    <span
+      className={`rounded-lg border px-2 py-0.5 text-[11px] ${
+        isReady
+          ? "border-emerald-900/60 text-emerald-300"
+          : isPrepared
+            ? "border-cyan-900/60 text-cyan-300"
+            : "border-zinc-800 text-zinc-500"
+      }`}
+    >
+      {status}
+    </span>
+  );
+}
+
+function DocRow({
+  doc,
+}: {
+  doc: { id: string; title: string; category: string | null; createdAt: Date; externalUrl: string | null };
+}) {
+  const categoryLabels: Record<string, string> = {
+    contrat: "Contrat",
+    facture: "Facture",
+    brief: "Brief",
+    livrable: "Livrable",
+    suivi: "Suivi",
+  };
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-lg border border-zinc-800/40 px-4 py-3">
       <div>
         <p className="text-sm text-white">{doc.title}</p>
         <p className="text-xs text-zinc-600">
-          {doc.category ? (CATEGORY_LABELS[doc.category] ?? doc.category) : "Document"} ·{" "}
+          {doc.category ? (categoryLabels[doc.category] ?? doc.category) : "Document"} ·{" "}
           {new Intl.DateTimeFormat("fr-FR").format(doc.createdAt)}
         </p>
       </div>
       {doc.externalUrl && (
         <a href={doc.externalUrl} target="_blank" rel="noreferrer" className="text-xs text-zinc-500 transition-colors hover:text-white">
-          Ouvrir →
+          Ouvrir
         </a>
       )}
     </div>

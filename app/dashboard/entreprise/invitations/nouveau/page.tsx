@@ -102,7 +102,7 @@ export default function NouvelleInvitationPage() {
 
           <div className="mt-5 grid gap-3">
             <div>
-              <p className="mb-1.5 text-xs font-medium text-zinc-500">Lien d'onboarding</p>
+              <p className="mb-1.5 text-xs font-medium text-zinc-500">Lien d&apos;onboarding</p>
               <div className="flex items-center gap-2">
                 <input
                   readOnly
@@ -155,7 +155,7 @@ export default function NouvelleInvitationPage() {
         <p className="text-xs uppercase tracking-widest text-zinc-600">Portail client</p>
         <h1 className="mt-1 text-2xl font-medium tracking-tight text-white">Nouvelle invitation</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Créez un lien d'onboarding à transmettre manuellement au client.
+          Créez un lien d&apos;onboarding à transmettre manuellement au client.
         </p>
       </div>
 

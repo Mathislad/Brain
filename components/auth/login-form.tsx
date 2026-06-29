@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -16,6 +16,11 @@ export function LoginForm() {
   const [lastEmail, setLastEmail] = useState("");
   const [pending, setPending] = useState(false);
   const errorId = "login-error";
+
+  useEffect(() => {
+    const supabase = createClient();
+    void supabase.auth.signOut();
+  }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

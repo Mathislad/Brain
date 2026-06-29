@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { requireAdmin } from "@/lib/auth/roles";
 import { getProspectsWithClientDetails } from "@/lib/clients-db";
 import type { ClientWithLinks } from "@/lib/client-types";
-import { getCurrentUser } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: {
@@ -19,7 +19,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
+  const user = await requireAdmin().catch(() => null);
   if (!user) redirect("/login");
 
   const userName =

@@ -4,29 +4,29 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
-  applicationName: "Brain",
+  applicationName: "F5L",
   title: {
-    default: "Brain | Prospection CRM",
-    template: "%s | Brain",
+    default: "F5L Agency | Acquisition client, CRM et IA",
+    template: "%s | F5L",
   },
   description:
-    "Brain centralise la prospection, le CRM et les actions commerciales dans un espace privé.",
+    "F5L construit les systèmes qui transforment votre visibilité en clients : sites, publicités, CRM, automatisations et IA.",
   alternates: { canonical: "/" },
   robots: { index: true, follow: true },
   openGraph: {
     type: "website",
     locale: "fr_FR",
-    siteName: "Brain",
-    title: "Brain | Prospection CRM",
+    siteName: "F5L Agency",
+    title: "F5L Agency | Acquisition client, CRM et IA",
     description:
-      "Un espace privé pour organiser vos prospects, rendez-vous, clients et actions commerciales.",
+      "Sites, Meta Ads, Google Ads, CRM, automatisations et agents IA réunis dans une infrastructure claire.",
     url: "/",
   },
   twitter: {
     card: "summary",
-    title: "Brain | Prospection CRM",
+    title: "F5L Agency | Acquisition client, CRM et IA",
     description:
-      "Un espace privé pour organiser vos prospects, rendez-vous, clients et actions commerciales.",
+      "Une agence premium pour structurer votre acquisition client.",
   },
 };
 

@@ -14,7 +14,7 @@ export default function AuthLayout({
         href="/"
         className="mb-10 text-lg font-medium tracking-tight text-white"
       >
-        Brain
+        Brain Admin
       </Link>
       <div className="w-full max-w-sm rounded-xl border border-zinc-800/80 bg-zinc-900/30 p-6 shadow-2xl shadow-black/40 backdrop-blur-sm sm:rounded-2xl sm:p-8">
         {children}

@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { RegisterForm } from "@/components/auth/register-form";
 
 export const metadata: Metadata = {
-  title: "Créer un compte",
+  title: "Première inscription",
   description: "Créez votre compte Brain pour accéder à votre espace privé.",
   alternates: { canonical: "/register" },
 };
@@ -13,9 +13,9 @@ export default function RegisterPage() {
   return (
     <div>
       <div className="mb-7">
-        <h1 className="text-lg font-medium text-white">Créer un compte</h1>
+        <h1 className="text-lg font-medium text-white">Première inscription</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Quelques secondes suffisent.
+          Créez votre compte administrateur Brain.
         </p>
       </div>
 

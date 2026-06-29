@@ -18,9 +18,11 @@ export function ClientShell({ orgName, userEmail, features, children }: Props) {
 
   // Navigation conditionnée par les feature flags actifs
   const NAV = [
-    { label: "Accueil",    href: "/client",     always: true },
+    { label: "Accueil",    href: "/client", always: true },
+    { label: "Services",   href: "/client/services", always: true },
     { label: "Documents",  href: "/client/documents", feature: "documents" as FeatureKey },
-    { label: "Abonnement", href: "/client/billing",   feature: "billing"   as FeatureKey },
+    { label: "Abonnement", href: "/client/billing", feature: "billing" as FeatureKey },
+    { label: "Support",    href: "/client/support", always: true },
   ].filter((item) => item.always || features[item.feature!]);
 
   function itemCls(href: string) {
@@ -34,7 +36,7 @@ export function ClientShell({ orgName, userEmail, features, children }: Props) {
     <div className="flex min-h-dvh flex-col bg-zinc-950">
       {/* Top nav */}
       <header className="sticky top-0 z-20 border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-sm">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-6 px-4">
+        <div className="mx-auto flex min-h-14 max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3 sm:px-6">
           {/* Brand */}
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium tracking-tight text-white">F5L Brain</span>
@@ -43,7 +45,7 @@ export function ClientShell({ orgName, userEmail, features, children }: Props) {
           </div>
 
           {/* Nav */}
-          <nav className="flex items-center gap-5">
+          <nav className="order-3 flex w-full items-center gap-4 overflow-x-auto sm:order-none sm:w-auto sm:gap-5">
             {NAV.map((item) => (
               <Link key={item.href} href={item.href} className={itemCls(item.href)}>
                 {item.label}
@@ -64,7 +66,7 @@ export function ClientShell({ orgName, userEmail, features, children }: Props) {
       </header>
 
       {/* Content */}
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
         {children}
       </main>
 

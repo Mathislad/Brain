@@ -44,11 +44,6 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Un admin déjà connecté qui retourne sur /login ou /register → dashboard.
-  if (user && (pathname === "/login" || pathname === "/register")) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
   // ── Portail client F5L Brain (/client/*) ────────────────────────────────────
   // Routes publiques du portail : login et onboarding (pas de session requise).
   const isPublicClientRoute =
@@ -61,21 +56,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/client/login", request.url));
   }
 
-  // ── Racine / ──────────────────────────────────────────────────────────────
-  // En V1, F5L Brain est la face publique : / → /client/login pour les visiteurs.
-  // Les admins accèdent à Brain via /login directement.
-  if (pathname === "/") {
-    return NextResponse.redirect(
-      new URL(user ? "/client" : "/client/login", request.url),
-    );
-  }
-
   return supabaseResponse;
 }
 
 export const config = {
   matcher: [
-    "/",
     "/dashboard/:path*",
     "/login",
     "/register",
