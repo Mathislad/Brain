@@ -4,21 +4,24 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { signOutClientAction } from "@/app/actions/auth";
+import type { FeatureKey } from "@/lib/auth/features";
 
 interface Props {
-  orgName: string;
+  orgName:   string;
   userEmail: string;
-  children: React.ReactNode;
+  features:  Record<FeatureKey, boolean>;
+  children:  React.ReactNode;
 }
 
-const NAV = [
-  { label: "Accueil",     href: "/client" },
-  { label: "Documents",   href: "/client/documents" },
-  { label: "Abonnement",  href: "/client/billing" },
-];
-
-export function ClientShell({ orgName, userEmail, children }: Props) {
+export function ClientShell({ orgName, userEmail, features, children }: Props) {
   const pathname = usePathname();
+
+  // Navigation conditionnée par les feature flags actifs
+  const NAV = [
+    { label: "Accueil",    href: "/client",     always: true },
+    { label: "Documents",  href: "/client/documents", feature: "documents" as FeatureKey },
+    { label: "Abonnement", href: "/client/billing",   feature: "billing"   as FeatureKey },
+  ].filter((item) => item.always || features[item.feature!]);
 
   function itemCls(href: string) {
     const active = href === "/client" ? pathname === href : pathname.startsWith(href);
@@ -52,10 +55,7 @@ export function ClientShell({ orgName, userEmail, children }: Props) {
           <div className="flex items-center gap-3">
             <span className="hidden text-xs text-zinc-600 sm:inline">{userEmail}</span>
             <form action={signOutClientAction}>
-              <button
-                type="submit"
-                className="text-xs text-zinc-600 transition-colors hover:text-zinc-300"
-              >
+              <button type="submit" className="text-xs text-zinc-600 transition-colors hover:text-zinc-300">
                 Déconnexion
               </button>
             </form>

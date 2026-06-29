@@ -31,26 +31,54 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  // Rafraîchit le token de session si nécessaire.
-  // getUser() est la seule méthode sûre côté serveur pour vérifier l'auth
-  // (getSession() ne valide pas le token avec Supabase).
+  // Valide le token JWT côté Supabase — seule méthode fiable.
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
 
+  // ── Brain dashboard (/dashboard/*) ─────────────────────────────────────────
+  // Redirige vers la page de login admin si non authentifié.
   if (!user && pathname.startsWith("/dashboard")) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  // Un admin déjà connecté qui retourne sur /login ou /register → dashboard.
   if (user && (pathname === "/login" || pathname === "/register")) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  // ── Portail client F5L Brain (/client/*) ────────────────────────────────────
+  // Routes publiques du portail : login et onboarding (pas de session requise).
+  const isPublicClientRoute =
+    pathname === "/client/login" ||
+    pathname.startsWith("/client/onboarding");
+
+  // Routes protégées /client/* : redirige vers /client/login si non authentifié.
+  // La vérification du rôle CLIENT est faite dans le layout (requireClient()).
+  if (pathname.startsWith("/client") && !isPublicClientRoute && !user) {
+    return NextResponse.redirect(new URL("/client/login", request.url));
+  }
+
+  // ── Racine / ──────────────────────────────────────────────────────────────
+  // En V1, F5L Brain est la face publique : / → /client/login pour les visiteurs.
+  // Les admins accèdent à Brain via /login directement.
+  if (pathname === "/") {
+    return NextResponse.redirect(
+      new URL(user ? "/client" : "/client/login", request.url),
+    );
   }
 
   return supabaseResponse;
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/register"],
+  matcher: [
+    "/",
+    "/dashboard/:path*",
+    "/login",
+    "/register",
+    "/client/:path*",
+  ],
 };
