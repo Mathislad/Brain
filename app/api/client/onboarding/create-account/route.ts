@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { prisma } from "@/lib/prisma";
 
 // Crée le compte Supabase Auth via admin SDK (email_confirm: true → pas de mail de vérification).
-// L'invitation contrôlée par token + code remplace le flow de confirmation email.
+// L'invitation contrôlée par token + code court remplace le flow de confirmation email.
 
 export async function POST(req: NextRequest) {
   let body: { token?: string; password?: string };
@@ -43,16 +43,7 @@ export async function POST(req: NextRequest) {
 
   const supabaseAdmin = createAdminClient();
 
-  // Vérifie si le compte existe déjà
-  const { data: existing } = await supabaseAdmin.auth.admin.listUsers();
-  const alreadyExists = existing?.users?.some(
-    (u) => u.email?.toLowerCase() === email.toLowerCase(),
-  );
-
-  if (alreadyExists) {
-    return NextResponse.json({ error: "Un compte existe déjà pour cet email" }, { status: 409 });
-  }
-
+  // Tente la création — Supabase retourne une erreur si l'email existe déjà.
   const { error: createErr } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
@@ -60,7 +51,9 @@ export async function POST(req: NextRequest) {
   });
 
   if (createErr) {
-    return NextResponse.json({ error: createErr.message }, { status: 400 });
+    // "User already registered" → 409
+    const status = createErr.message.toLowerCase().includes("already") ? 409 : 400;
+    return NextResponse.json({ error: createErr.message }, { status });
   }
 
   return NextResponse.json({ success: true });

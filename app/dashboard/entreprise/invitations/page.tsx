@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 
 import { getInvitationsAction } from "@/app/actions/invitations";
 import { InvitationActions } from "@/components/dashboard/invitation-actions";
@@ -24,6 +25,12 @@ const STATUS_LABELS: Record<string, string> = {
 export default async function InvitationsPage() {
   const invitations = await getInvitationsAction();
   const secsLeft = secondsUntilNextCode();
+
+  // Dérive l'origine depuis les headers de la requête (fonctionne en local + Vercel)
+  const hdrs = await headers();
+  const host = hdrs.get("host") ?? "";
+  const proto = hdrs.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  const origin = `${proto}://${host}`;
 
   return (
     <div className="px-4 py-8 sm:px-8 sm:py-10">
@@ -62,7 +69,7 @@ export default async function InvitationsPage() {
               monthlyAmount?: number;
               notesAdmin?: string;
             };
-            const onboardingUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/client/onboarding/${inv.accessToken}`;
+            const onboardingUrl = `${origin}/client/onboarding/${inv.accessToken}`;
 
             return (
               <div
