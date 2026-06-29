@@ -14,7 +14,7 @@ export async function getClientMembership(userId: string) {
     where: {
       userId,
       role: "CLIENT",
-      organization: { status: "active" },
+      organization: { status: { in: ["pending", "active"] } },
     },
     include: {
       organization: {
@@ -89,7 +89,9 @@ export async function requireAdmin() {
 }
 
 // Guard portail client.
-// Vérifie auth + membership CLIENT actif.
+// Vérifie auth + membership CLIENT non suspendu.
+// Une organisation pending peut entrer dans le portail : la modal de paiement
+// bloque ensuite l'usage tant que l'abonnement n'est pas actif.
 export async function requireClient() {
   const user = await getCurrentUser();
   if (!user) redirect("/client/login");

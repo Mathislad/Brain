@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 
 import { completeSignupAction } from "@/app/actions/invitations";
 import { createClient } from "@/lib/supabase/client";
-import { offerLabel, formatCents } from "@/lib/offers";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,7 +29,7 @@ export interface OnboardingInitialData {
   prefilled:   PrefilledData;
 }
 
-const STEPS = ["Informations", "Mot de passe", "Paiement", "Confirmation"];
+const STEPS = ["Informations", "Mot de passe", "Activation"];
 
 // ─── Shared UI ────────────────────────────────────────────────────────────────
 
@@ -229,115 +228,7 @@ function StepPassword({
   );
 }
 
-// ─── Étape 3 — Paiement ───────────────────────────────────────────────────────
-
-function StepPayment({
-  token,
-  prefilled,
-  orgName,
-  onNext,
-}: {
-  token: string;
-  prefilled: PrefilledData;
-  orgName: string;
-  onNext: () => void;
-}) {
-  const [code, setCode]     = useState("");
-  const [error, setError]   = useState<string | null>(null);
-  const [isPending, start]  = useTransition();
-
-  const total1 = (prefilled.setupAmount ?? 0) + (prefilled.monthlyAmount ?? 0);
-
-  function pay() {
-    if (code.trim().length !== 6) { setError("Le code doit contenir 6 chiffres"); return; }
-    setError(null);
-
-    start(async () => {
-      try {
-        // 1. Valider le code court
-        const codeRes = await fetch("/api/client/onboarding/validate-code", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token, code: code.trim() }),
-        });
-        const codeJson = await codeRes.json();
-        if (!codeRes.ok) { setError(codeJson.error ?? "Code invalide"); return; }
-
-        // 2. Déclencher le paiement (simulation V1)
-        const payRes = await fetch("/api/client/billing/simulate-checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
-        });
-        const payJson = await payRes.json();
-        if (!payRes.ok) { setError(payJson.error ?? "Erreur de paiement"); return; }
-
-        onNext();
-      } catch (e) {
-        setError(String(e));
-      }
-    });
-  }
-
-  return (
-    <div className="grid gap-5">
-      <p className="text-sm text-zinc-400">
-        Récapitulatif de votre offre. Renseignez le code de vérification transmis par votre conseiller.
-      </p>
-
-      {/* Récap */}
-      <div className="rounded-xl border border-zinc-800/60 bg-zinc-950/40 p-5">
-        <p className="mb-4 text-xs font-medium uppercase tracking-wider text-zinc-600">Récapitulatif</p>
-        <div className="divide-y divide-zinc-800/40">
-          <Row label="Offre" value={offerLabel(prefilled.offerKey)} />
-          <Row label="Organisation" value={orgName} />
-          {prefilled.setupAmount > 0 && <Row label="Installation" value={formatCents(prefilled.setupAmount)} />}
-          <Row label="Mensualité" value={`${formatCents(prefilled.monthlyAmount)}/mois`} />
-          <Row label="Total mois 1" value={formatCents(total1)} strong />
-        </div>
-        <p className="mt-4 text-[11px] text-zinc-700">
-          TVA non applicable — art. L.223-3 CIBS / 293 B CGI
-        </p>
-      </div>
-
-      {/* Code de vérification */}
-      <div className="rounded-xl border border-zinc-800/60 bg-zinc-950/40 p-5">
-        <p className="mb-3 text-sm font-medium text-zinc-300">
-          Code de vérification à 6 chiffres
-        </p>
-        <p className="mb-4 text-xs text-zinc-500">
-          Votre conseiller vous a transmis ce code par SMS ou email. Il est valable 15 minutes.
-        </p>
-        <input
-          className={`${inputCls} w-40 text-center text-xl tracking-[0.3em]`}
-          value={code}
-          onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-          placeholder="000000"
-          maxLength={6}
-          inputMode="numeric"
-        />
-      </div>
-
-      {error && <ErrorBox msg={error} />}
-
-      <button type="button" onClick={pay} disabled={isPending || code.length !== 6}
-        className="h-10 w-full rounded-lg bg-white text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-200 disabled:opacity-50">
-        {isPending ? "Activation en cours…" : "Payer et activer mon espace →"}
-      </button>
-    </div>
-  );
-}
-
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-2.5">
-      <span className="text-sm text-zinc-500">{label}</span>
-      <span className={`text-sm ${strong ? "font-semibold text-white" : "text-zinc-300"}`}>{value}</span>
-    </div>
-  );
-}
-
-// ─── Étape 4 — Confirmation ───────────────────────────────────────────────────
+// ─── Étape 3 — Confirmation ───────────────────────────────────────────────────
 
 function StepConfirmation({ orgName }: { orgName: string }) {
   const router = useRouter();
@@ -351,7 +242,7 @@ function StepConfirmation({ orgName }: { orgName: string }) {
         <h2 className="text-xl font-medium text-white">Espace activé !</h2>
         <p className="mt-2 text-sm text-zinc-400">
           Bienvenue dans votre espace <strong className="text-white">{orgName}</strong> sur F5L Brain.
-          Votre abonnement est maintenant actif.
+          Votre compte est prêt. Une fenêtre d&apos;activation vous guidera ensuite vers le rendez-vous recommandé et le paiement.
         </p>
       </div>
       <button type="button" onClick={() => router.push("/client")}
@@ -371,7 +262,6 @@ export function OnboardingWizard({ initialData }: { initialData: OnboardingIniti
   const stepContent = [
     <StepInfos key="infos" data={initialData} token={initialData.token} onNext={next} />,
     <StepPassword key="pwd" token={initialData.token} email={initialData.contactEmail} onNext={next} />,
-    <StepPayment key="pay" token={initialData.token} prefilled={initialData.prefilled} orgName={initialData.orgName} onNext={next} />,
     <StepConfirmation key="done" orgName={initialData.orgName} />,
   ];
 

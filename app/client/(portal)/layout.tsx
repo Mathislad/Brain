@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 import { ClientShell } from "@/components/client/client-shell";
+import { PaymentGate } from "@/components/client/payment-gate";
 import { requireClient } from "@/lib/auth/roles";
 import { getOrgFeatures } from "@/lib/auth/features";
 
@@ -22,6 +23,21 @@ export default async function ClientPortalLayout({ children }: { children: React
       userEmail={result.user.email ?? ""}
       features={features}
     >
+      <PaymentGate
+        orgName={result.organization.name}
+        billing={
+          result.organization.billing
+            ? {
+                offerKey: result.organization.billing.offerKey,
+                setupAmount: result.organization.billing.setupAmount,
+                monthlyAmount: result.organization.billing.monthlyAmount,
+                subscriptionStatus:
+                  result.organization.billing.subscriptionStatus,
+                isSimulated: result.organization.billing.isSimulated,
+              }
+            : null
+        }
+      />
       {children}
     </ClientShell>
   );

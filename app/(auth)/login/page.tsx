@@ -36,12 +36,12 @@ export default function LoginPage() {
       <LoginForm />
 
       <p className="mt-6 text-center text-sm text-zinc-500">
-        Première connexion ?{" "}
+        Besoin d&apos;un accès admin ?{" "}
         <Link
           href="/register"
           className="text-zinc-300 underline-offset-4 transition-colors hover:text-white hover:underline"
         >
-          Première inscription
+          Demander un compte
         </Link>
       </p>
     </div>
