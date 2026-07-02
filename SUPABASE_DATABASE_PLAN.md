@@ -99,15 +99,19 @@ Attendu d'après le code : `site-images` (public, créé par lib/site-storage.ts
 
 ## 5. Ordre d'exécution (SQL Editor, bloc par bloc, validation entre chaque)
 
-| Bloc | Contenu | Destructif ? |
+| Bloc | Contenu | État |
 |---|---|---|
-| 1 | Diagnostic lecture seule | Non — ✅ fait le 2 juillet |
-| 2 | CREATE OR REPLACE des 2 fonctions (search_path) | Non (remplace le corps, même signature) |
-| 2b | Re-vérification Storage (2 requêtes séparées) | Non |
-| 3 | ENABLE ROW LEVEL SECURITY sur les 12 tables | Non (l'app bypasse ; PostgREST passe de "tout ouvert" à "tout fermé") |
-| 4 | CREATE POLICY sur les 12 tables | Non |
-| 5 | Storage : buckets manquants via dashboard + policies | Non |
-| 6 | Vérification finale (re-diagnostic + tests par rôle) | Non |
+| 1 | Diagnostic lecture seule | ✅ 2 juillet 2026 |
+| 2 | CREATE OR REPLACE des 2 fonctions (search_path verrouillé) | ✅ 2 juillet 2026 |
+| 2b | Re-vérification Storage : aucun bucket n'existait | ✅ 2 juillet 2026 |
+| 3 | ENABLE ROW LEVEL SECURITY sur les 12 tables | ✅ 2 juillet 2026 |
+| 4 | 48 policies créées (total : 130) | ✅ 2 juillet 2026 |
+| 5 | Bucket `contrats` créé via dashboard (privé, 10 MB, application/pdf) | ✅ 2 juillet 2026 |
+| 6 | Vérification finale | ✅ 2 juillet 2026 |
+
+Les blocs 2-4 sont enregistrés dans le repo :
+`prisma/migrations/20260702120000_rls_f5l_brain_hardening/migration.sql`,
+marquée appliquée via `prisma migrate resolve --applied`.
 
 **Pas de bloc "types/enums"** : `AppRole` et `ProspectStatus` existent déjà (Prisma).
 **Pas de bloc seed** : la prod contient des données réelles.
