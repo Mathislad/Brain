@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 import {
   createAccountingEntry,
@@ -9,7 +8,7 @@ import {
   bulkCreateAccountingEntries,
 } from "@/lib/accounting-db";
 import type { AccountingEntryInput } from "@/lib/accounting-types";
-import { getCurrentUser } from "@/lib/session";
+import { requireAdmin } from "@/lib/auth/roles";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
 function revalidate() {
@@ -19,8 +18,7 @@ function revalidate() {
 export async function createAccountingEntryAction(
   input: AccountingEntryInput,
 ): Promise<{ ok: boolean; error?: string }> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   try {
     enforceRateLimit(`accounting-create:${user.id}`, { limit: 120, windowMs: 60 * 1000 });
     await createAccountingEntry(user.id, input);
@@ -32,8 +30,7 @@ export async function createAccountingEntryAction(
 }
 
 export async function deleteAccountingEntryAction(id: string): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   enforceRateLimit(`accounting-delete:${user.id}`, { limit: 120, windowMs: 60 * 1000 });
   await deleteAccountingEntry(user.id, id);
   revalidate();
@@ -43,8 +40,7 @@ export async function deleteAccountingEntryAction(id: string): Promise<void> {
 export async function migrateAccountingEntriesAction(
   inputs: AccountingEntryInput[],
 ): Promise<{ count: number; error?: string }> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   try {
     enforceRateLimit(`accounting-migrate:${user.id}`, { limit: 3, windowMs: 60 * 60 * 1000 });
     if (!Array.isArray(inputs) || inputs.length === 0) return { count: 0 };

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/session";
+import { requireAdmin } from "@/lib/auth/roles";
 
 export type ContratStatut = "brouillon" | "envoye" | "signe" | "archive";
 
@@ -57,8 +57,7 @@ export interface ContratFormData {
 }
 
 export async function getContratsAction() {
-  const user = await getCurrentUser();
-  if (!user) return [];
+  const user = await requireAdmin();
   return prisma.contrat.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
@@ -66,8 +65,7 @@ export async function getContratsAction() {
 }
 
 export async function getContratAction(id: string) {
-  const user = await getCurrentUser();
-  if (!user) return null;
+  const user = await requireAdmin();
   return prisma.contrat.findFirst({ where: { id, userId: user.id } });
 }
 
@@ -75,8 +73,7 @@ export async function createContratAction(
   formData: ContratFormData,
   storagePath?: string,
 ): Promise<string> {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Non authentifié");
+  const user = await requireAdmin();
 
   const contrat = await prisma.contrat.create({
     data: {
@@ -103,8 +100,7 @@ export async function createContratAction(
 }
 
 export async function updateContratStatutAction(id: string, statut: ContratStatut) {
-  const user = await getCurrentUser();
-  if (!user) return;
+  const user = await requireAdmin();
   await prisma.contrat.updateMany({
     where: { id, userId: user.id },
     data: { statut },
@@ -113,8 +109,7 @@ export async function updateContratStatutAction(id: string, statut: ContratStatu
 }
 
 export async function updateContratNotesAction(id: string, notes: string) {
-  const user = await getCurrentUser();
-  if (!user) return;
+  const user = await requireAdmin();
   await prisma.contrat.updateMany({
     where: { id, userId: user.id },
     data: { notes },
@@ -123,8 +118,7 @@ export async function updateContratNotesAction(id: string, notes: string) {
 }
 
 export async function deleteContratAction(id: string) {
-  const user = await getCurrentUser();
-  if (!user) return;
+  const user = await requireAdmin();
   await prisma.contrat.deleteMany({ where: { id, userId: user.id } });
   revalidatePath("/dashboard/entreprise/contrats");
 }

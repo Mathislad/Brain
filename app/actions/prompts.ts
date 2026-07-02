@@ -1,11 +1,10 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/session";
+import { requireAdmin } from "@/lib/auth/roles";
 
 export async function getPromptsAction() {
-  const user = await getCurrentUser();
-  if (!user) return [];
+  const user = await requireAdmin();
 
   return prisma.prompt.findMany({
     where: { userId: user.id },
@@ -19,8 +18,7 @@ export async function createPromptAction(data: {
   content: string;
   tags: string[];
 }) {
-  const user = await getCurrentUser();
-  if (!user) return null;
+  const user = await requireAdmin();
 
   return prisma.prompt.create({
     data: {
@@ -34,8 +32,7 @@ export async function createPromptAction(data: {
 }
 
 export async function togglePromptFavoriteAction(id: string, favorite: boolean) {
-  const user = await getCurrentUser();
-  if (!user) return;
+  const user = await requireAdmin();
 
   await prisma.prompt.updateMany({
     where: { id, userId: user.id },
@@ -44,8 +41,7 @@ export async function togglePromptFavoriteAction(id: string, favorite: boolean) 
 }
 
 export async function deletePromptAction(id: string) {
-  const user = await getCurrentUser();
-  if (!user) return;
+  const user = await requireAdmin();
 
   await prisma.prompt.deleteMany({ where: { id, userId: user.id } });
 }

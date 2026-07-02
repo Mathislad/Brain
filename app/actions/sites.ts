@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 import {
   createSite,
@@ -14,7 +13,7 @@ import {
 } from "@/lib/sites-db";
 import { uploadSiteImage } from "@/lib/site-storage";
 import type { SiteFormData, SiteItemFormData } from "@/lib/site-types";
-import { getCurrentUser } from "@/lib/session";
+import { requireAdmin } from "@/lib/auth/roles";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
 const WRITE_LIMIT = { limit: 120, windowMs: 60 * 1000 };
@@ -31,8 +30,7 @@ function revalidate() {
 export async function createSiteAction(
   data: SiteFormData,
 ): Promise<Result & { id?: string }> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   try {
     enforceRateLimit(`site-create:${user.id}`, WRITE_LIMIT);
     const id = await createSite(user.id, data);
@@ -47,8 +45,7 @@ export async function updateSiteAction(
   id: string,
   data: SiteFormData,
 ): Promise<Result> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   try {
     enforceRateLimit(`site-update:${user.id}`, WRITE_LIMIT);
     await updateSite(user.id, id, data);
@@ -60,8 +57,7 @@ export async function updateSiteAction(
 }
 
 export async function deleteSiteAction(id: string): Promise<Result> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   try {
     enforceRateLimit(`site-delete:${user.id}`, WRITE_LIMIT);
     await deleteSite(user.id, id);
@@ -78,8 +74,7 @@ export async function createSiteItemAction(
   siteId: string,
   data: SiteItemFormData,
 ): Promise<Result> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   try {
     enforceRateLimit(`siteitem-create:${user.id}`, WRITE_LIMIT);
     await createSiteItem(user.id, siteId, data);
@@ -94,8 +89,7 @@ export async function updateSiteItemAction(
   id: string,
   data: SiteItemFormData,
 ): Promise<Result> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   try {
     enforceRateLimit(`siteitem-update:${user.id}`, WRITE_LIMIT);
     await updateSiteItem(user.id, id, data);
@@ -107,8 +101,7 @@ export async function updateSiteItemAction(
 }
 
 export async function deleteSiteItemAction(id: string): Promise<Result> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   try {
     enforceRateLimit(`siteitem-delete:${user.id}`, WRITE_LIMIT);
     await deleteSiteItem(user.id, id);
@@ -123,8 +116,7 @@ export async function reorderSiteItemsAction(
   siteId: string,
   orderedIds: string[],
 ): Promise<Result> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   try {
     enforceRateLimit(`siteitem-reorder:${user.id}`, WRITE_LIMIT);
     await reorderSiteItems(user.id, siteId, orderedIds);
@@ -140,8 +132,7 @@ export async function reorderSiteItemsAction(
 export async function uploadSiteImageAction(
   formData: FormData,
 ): Promise<Result & { url?: string }> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   try {
     enforceRateLimit(`site-upload:${user.id}`, UPLOAD_LIMIT);
 

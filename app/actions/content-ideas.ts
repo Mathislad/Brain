@@ -2,11 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/session";
+import { requireAdmin } from "@/lib/auth/roles";
 
 export async function getContentIdeasAction() {
-  const user = await getCurrentUser();
-  if (!user) return [];
+  const user = await requireAdmin();
 
 
   return prisma.contentIdea.findMany({
@@ -21,8 +20,7 @@ export async function createContentIdeaAction(data: {
   format: string;
   platform: string;
 }) {
-  const user = await getCurrentUser();
-  if (!user) return null;
+  const user = await requireAdmin();
 
 
   const idea = await prisma.contentIdea.create({
@@ -51,8 +49,7 @@ export async function updateContentIdeaAction(
     steps: Record<string, boolean>;
   }>,
 ) {
-  const user = await getCurrentUser();
-  if (!user) return;
+  const user = await requireAdmin();
 
 
   await prisma.contentIdea.updateMany({
@@ -71,8 +68,7 @@ export async function updateContentIdeaAction(
 }
 
 export async function deleteContentIdeaAction(id: string) {
-  const user = await getCurrentUser();
-  if (!user) return;
+  const user = await requireAdmin();
 
 
   await prisma.contentIdea.deleteMany({ where: { id, userId: user.id } });

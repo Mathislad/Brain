@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 import {
   addClientLink,
@@ -15,7 +14,7 @@ import type {
   BillingInput,
   PaymentInput,
 } from "@/lib/client-types";
-import { getCurrentUser } from "@/lib/session";
+import { requireAdmin } from "@/lib/auth/roles";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
 const WRITE_LIMIT = { limit: 120, windowMs: 60 * 1000 };
@@ -30,16 +29,14 @@ function revalidateClientAndAccounting() {
 }
 
 export async function addClientLinkAction(data: ClientLinkInput): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   enforceRateLimit(`client-link:${user.id}`, WRITE_LIMIT);
   await addClientLink(user.id, data);
   revalidateClient();
 }
 
 export async function deleteClientLinkAction(linkId: string): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   enforceRateLimit(`client-link:${user.id}`, WRITE_LIMIT);
   await deleteClientLink(user.id, linkId);
   revalidateClient();
@@ -48,16 +45,14 @@ export async function deleteClientLinkAction(linkId: string): Promise<void> {
 // ─── Facturation ──────────────────────────────────────────────────────────────
 
 export async function updateClientBillingAction(data: BillingInput): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   enforceRateLimit(`client-billing:${user.id}`, WRITE_LIMIT);
   await updateClientBilling(user.id, data);
   revalidateClient();
 }
 
 export async function addPaymentAction(data: PaymentInput): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   enforceRateLimit(`client-payment:${user.id}`, WRITE_LIMIT);
   await addPayment(user.id, data);
   // Payment partagé avec la Comptabilité → revalider les deux pages
@@ -65,8 +60,7 @@ export async function addPaymentAction(data: PaymentInput): Promise<void> {
 }
 
 export async function deletePaymentAction(paymentId: string): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   enforceRateLimit(`client-payment:${user.id}`, WRITE_LIMIT);
   await deletePayment(user.id, paymentId);
   revalidateClientAndAccounting();

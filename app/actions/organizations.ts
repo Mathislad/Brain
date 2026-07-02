@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAdmin } from "@/lib/auth/roles";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 
@@ -48,8 +49,7 @@ export async function getMyDocumentsAction() {
 
 // Tous les clients (pour Brain admin)
 export async function getClientOrgsAction() {
-  const user = await getCurrentUser();
-  if (!user) return [];
+  await requireAdmin();
 
   return prisma.organization.findMany({
     where: { type: "client" },
@@ -59,32 +59,5 @@ export async function getClientOrgsAction() {
       members: { where: { role: "CLIENT" } },
     },
     orderBy: { createdAt: "desc" },
-  });
-}
-
-// Ajouter un document (admin → visible client par défaut)
-export async function addClientDocumentAction(data: {
-  organizationId: string;
-  title: string;
-  description?: string;
-  category?: string;
-  externalUrl?: string;
-  visibleToClient?: boolean;
-}) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Non authentifié");
-
-  return prisma.clientDocument.create({
-    data: {
-      organizationId:  data.organizationId,
-      title:           data.title,
-      description:     data.description ?? null,
-      category:        data.category ?? null,
-      externalUrl:     data.externalUrl ?? null,
-      visibleToClient: data.visibleToClient ?? true,
-      createdBy:       user.id,
-      createdByRole:   "ADMIN",
-      uploadedBy:      user.id,
-    },
   });
 }

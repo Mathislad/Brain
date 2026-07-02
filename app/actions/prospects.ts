@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 import {
   updateProspectStatus,
@@ -11,7 +10,7 @@ import {
   isProspectStatus,
 } from "@/lib/prospects-db";
 import type { ProspectFormData, ProspectStatus } from "@/lib/prospect-types";
-import { getCurrentUser } from "@/lib/session";
+import { requireAdmin } from "@/lib/auth/roles";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 const MAX_CSV_IMPORT_ROWS = 500;
@@ -28,8 +27,7 @@ export async function updateProspectStatusAction(
   id: string,
   status: ProspectStatus,
 ): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   const rateLimit = checkRateLimit(`prospect-status:${user.id}`, {
     limit: 120,
     windowMs: 60 * 1000,
@@ -45,8 +43,7 @@ export async function updateProspectStatusAction(
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
 export async function createProspectAction(data: ProspectFormData): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   const rateLimit = checkRateLimit(`prospect-create:${user.id}`, {
     limit: 60,
     windowMs: 60 * 1000,
@@ -60,8 +57,7 @@ export async function updateProspectAction(
   id: string,
   data: ProspectFormData,
 ): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   const rateLimit = checkRateLimit(`prospect-update:${user.id}`, {
     limit: 120,
     windowMs: 60 * 1000,
@@ -72,8 +68,7 @@ export async function updateProspectAction(
 }
 
 export async function deleteProspectAction(id: string): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
   const rateLimit = checkRateLimit(`prospect-delete:${user.id}`, {
     limit: 60,
     windowMs: 60 * 1000,
@@ -88,8 +83,7 @@ export async function deleteProspectAction(id: string): Promise<void> {
 export async function importFromCsvAction(
   rows: ProspectFormData[],
 ): Promise<{ count: number; error?: string }> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
 
   try {
     const rateLimit = checkRateLimit(`prospect-import:${user.id}`, {

@@ -1,19 +1,17 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/session";
+import { requireAdmin } from "@/lib/auth/roles";
 
 export async function getLaunchConfigAction() {
-  const user = await getCurrentUser();
-  if (!user) return null;
+  const user = await requireAdmin();
 
 
   return prisma.launchConfig.findUnique({ where: { userId: user.id } });
 }
 
 export async function saveLaunchConfigAction(sessions: unknown) {
-  const user = await getCurrentUser();
-  if (!user) return;
+  const user = await requireAdmin();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data = sessions as any;

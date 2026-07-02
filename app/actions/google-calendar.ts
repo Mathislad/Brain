@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { createGoogleCalendarEvent } from "@/lib/google-calendar";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/session";
+import { requireAdmin } from "@/lib/auth/roles";
 
 function parseDateTime(value: FormDataEntryValue | null) {
   const raw = typeof value === "string" ? value : "";
@@ -16,8 +16,7 @@ function parseDateTime(value: FormDataEntryValue | null) {
 }
 
 export async function createAgendaEventAction(formData: FormData) {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
 
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
@@ -49,8 +48,7 @@ export async function createAgendaEventAction(formData: FormData) {
 }
 
 export async function disconnectGoogleCalendarAction() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requireAdmin();
 
   await prisma.googleCalendarConnection.deleteMany({
     where: { userId: user.id },

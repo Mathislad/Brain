@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/session";
+import { requireAdmin } from "@/lib/auth/roles";
 
 function normalizePhone(value: string): string {
   const digits = value.replace(/\D/g, "");
@@ -13,8 +13,7 @@ function normalizePhone(value: string): string {
 }
 
 export async function getDoNotCallListAction() {
-  const user = await getCurrentUser();
-  if (!user) return [];
+  const user = await requireAdmin();
 
   return prisma.doNotCall.findMany({
     where: { userId: user.id },
@@ -23,8 +22,7 @@ export async function getDoNotCallListAction() {
 }
 
 export async function addDoNotCallAction(phone: string, note: string) {
-  const user = await getCurrentUser();
-  if (!user) return;
+  const user = await requireAdmin();
 
   const normalizedPhone = normalizePhone(phone.trim());
   if (!normalizedPhone) return;
@@ -41,8 +39,7 @@ export async function addDoNotCallAction(phone: string, note: string) {
 }
 
 export async function removeDoNotCallAction(id: string) {
-  const user = await getCurrentUser();
-  if (!user) return;
+  const user = await requireAdmin();
 
 
   await prisma.doNotCall.deleteMany({ where: { id, userId: user.id } });

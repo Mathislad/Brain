@@ -4,16 +4,14 @@ import { revalidatePath } from "next/cache";
 
 import { generateAccessToken, generateShortCodeSecret, getCurrentCode } from "@/lib/auth/invitation";
 import { DEFAULT_FEATURES } from "@/lib/auth/features";
+import { requireAdmin } from "@/lib/auth/roles";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
-
-const INTERNAL_ORG_ID = "org_internal_f5l";
 
 // ─── Lecture (admin) ──────────────────────────────────────────────────────────
 
 export async function getInvitationsAction() {
-  const user = await getCurrentUser();
-  if (!user) return [];
+  const user = await requireAdmin();
 
   const invitations = await prisma.clientInvitation.findMany({
     where: { createdBy: user.id },
@@ -32,26 +30,6 @@ export async function getInvitationsAction() {
   }));
 }
 
-export async function getInvitationForAdminAction(id: string) {
-  const user = await getCurrentUser();
-  if (!user) return null;
-
-  const inv = await prisma.clientInvitation.findFirst({
-    where: { id },
-    include: { organization: { include: { prospect: true, billing: true } } },
-  });
-  if (!inv) return null;
-
-  return {
-    ...inv,
-    contactEmail:
-      inv.status === "pending"
-        ? (inv.organization.prospect?.email ?? inv.contactEmail)
-        : inv.contactEmail,
-    currentCode: inv.shortCodeSecret ? getCurrentCode(inv.shortCodeSecret) : null,
-  };
-}
-
 // ─── Création (admin) ─────────────────────────────────────────────────────────
 
 export async function createInvitationAction(data: {
@@ -61,8 +39,7 @@ export async function createInvitationAction(data: {
   monthlyAmount: number;  // centimes
   notesAdmin: string;
 }) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Non authentifié");
+  const user = await requireAdmin();
 
   const prospect = await prisma.prospect.findFirst({
     where: { id: data.prospectId, userId: user.id },
@@ -159,8 +136,7 @@ export async function createInvitationAction(data: {
 // ─── Révocation (admin) ───────────────────────────────────────────────────────
 
 export async function revokeInvitationAction(id: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Non authentifié");
+  const user = await requireAdmin();
 
   await prisma.clientInvitation.updateMany({
     where: { id, createdBy: user.id, status: { in: ["pending", "in_progress"] } },
@@ -213,28 +189,5 @@ export async function completeSignupAction(token: string) {
       status: "in_progress",
       contactEmail: user.email!,
     },
-  });
-}
-
-// ─── Ajout admin interne comme membre (seed runtime) ─────────────────────────
-// Utilisé si le seed SQL n'a pas pu s'exécuter (user pas encore créé au moment de la migration).
-
-export async function ensureInternalMemberAction() {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Non authentifié");
-
-  await prisma.organizationMember.upsert({
-    where: {
-      organizationId_userId: {
-        organizationId: INTERNAL_ORG_ID,
-        userId: user.id,
-      },
-    },
-    create: {
-      organizationId: INTERNAL_ORG_ID,
-      userId: user.id,
-      role: "OWNER",
-    },
-    update: {},
   });
 }

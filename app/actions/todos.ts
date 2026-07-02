@@ -2,11 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/session";
+import { requireAdmin } from "@/lib/auth/roles";
 
 export async function getTodosAction() {
-  const user = await getCurrentUser();
-  if (!user) return [];
+  const user = await requireAdmin();
 
 
   return prisma.todoItem.findMany({
@@ -21,8 +20,7 @@ export async function createTodoAction(data: {
   priority: string;
   dueDate?: string;
 }) {
-  const user = await getCurrentUser();
-  if (!user) return;
+  const user = await requireAdmin();
 
 
   await prisma.todoItem.create({
@@ -39,8 +37,7 @@ export async function createTodoAction(data: {
 }
 
 export async function updateTodoStatusAction(id: string, status: string) {
-  const user = await getCurrentUser();
-  if (!user) return;
+  const user = await requireAdmin();
 
 
   await prisma.todoItem.updateMany({
@@ -52,8 +49,7 @@ export async function updateTodoStatusAction(id: string, status: string) {
 }
 
 export async function deleteTodoAction(id: string) {
-  const user = await getCurrentUser();
-  if (!user) return;
+  const user = await requireAdmin();
 
 
   await prisma.todoItem.deleteMany({ where: { id, userId: user.id } });

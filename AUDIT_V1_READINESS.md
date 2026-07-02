@@ -64,11 +64,14 @@ compte CLIENT peut techniquement les appeler et créer ses propres données Brai
 actions du dashboard (tout sauf `auth.ts`, `f5l-portal.ts`, `organizations.ts`
 partie client, `account.ts`).
 
-**P1-3. Pas de rate limit sur le login.**
+**P1-3. Pas de rate limit sur le login. — DÉCISION : Option A (V1).**
 `checkRateLimit` existe (lib/rate-limit.ts) mais n'est branché que sur la
-suppression de compte. Ajouter sur signIn (clé : IP + email). Note : la limite
-est en mémoire, donc par instance serverless — acceptable V1 (Supabase a aussi
-son propre throttling), à migrer vers Upstash/Redis en V2.
+suppression de compte. Constat requalifié par l'agent sécurité : le login se fait
+**côté navigateur** (`supabase.auth.signInWithPassword`, pas de Server Action), donc
+`checkRateLimit` (server-only, en mémoire par instance) n'est pas branchable tel quel.
+**Décision V1 : on s'appuie sur le throttling natif de Supabase Auth (GoTrue)** sur
+`/token`. Convertir le login en Server Action + rate-limit distribué (Upstash/Redis)
+est reporté en V2.
 
 ### 🟡 P2
 
