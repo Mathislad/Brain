@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { generateAccessToken, generateShortCodeSecret, getCurrentCode } from "@/lib/auth/invitation";
 import { DEFAULT_FEATURES } from "@/lib/auth/features";
 import { requireAdmin } from "@/lib/auth/roles";
+import { getOfferBlueprint } from "@/lib/offer-blueprint";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 
@@ -60,12 +61,13 @@ export async function createInvitationAction(data: {
       },
     });
 
-    // Features par défaut
+    // Features : socle par défaut + activation dérivée de l'offre choisie
+    const offerFeatures = new Set(getOfferBlueprint(data.offerKey).features);
     await prisma.organizationFeature.createMany({
-      data: Object.entries(DEFAULT_FEATURES).map(([key, enabled]) => ({
+      data: Object.keys(DEFAULT_FEATURES).map((key) => ({
         organizationId: org!.id,
         featureKey: key,
-        enabled,
+        enabled: DEFAULT_FEATURES[key as keyof typeof DEFAULT_FEATURES] || offerFeatures.has(key as never),
       })),
       skipDuplicates: true,
     });
@@ -190,4 +192,45 @@ export async function completeSignupAction(token: string) {
       contactEmail: user.email!,
     },
   });
+
+  // Provisionne les services F5L selon l'offre (idempotent).
+  await seedOrganizationServices(inv.organizationId, inv.prefilledData);
+}
+
+// Crée les F5lService (+ WebsiteProject vide) d'après le blueprint de l'offre.
+// Idempotent : ne fait rien si l'org a déjà des services.
+async function seedOrganizationServices(
+  organizationId: string,
+  prefilledData: unknown,
+) {
+  const existing = await prisma.f5lService.count({ where: { organizationId } });
+  if (existing > 0) return;
+
+  const offerKey =
+    prefilledData && typeof prefilledData === "object" && "offerKey" in prefilledData
+      ? (prefilledData as { offerKey?: string }).offerKey
+      : undefined;
+
+  const blueprint = getOfferBlueprint(offerKey);
+
+  await prisma.f5lService.createMany({
+    data: blueprint.services.map((s) => ({
+      organizationId,
+      type: s.type,
+      name: s.name,
+      status: s.status,
+    })),
+  });
+
+  // Si l'offre inclut un site, prépare un projet site vide à piloter.
+  const hasWebsite = blueprint.services.some((s) => s.type === "website");
+  if (hasWebsite) {
+    await prisma.websiteProject.create({
+      data: {
+        organizationId,
+        status: "planned",
+        contentStatus: "waiting",
+      },
+    });
+  }
 }
