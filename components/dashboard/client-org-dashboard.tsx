@@ -120,16 +120,18 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SourceNote({ source }: { source: "db" | "mock" }) {
-  if (source !== "mock") return null;
+function EmptyNote({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mb-4 text-xs text-cyan-400/80">
-      Données de démonstration — en attente de connexion réelle pour ce client.
+    <p className="rounded-lg border border-dashed border-zinc-800 px-4 py-6 text-center text-sm text-zinc-600">
+      {children}
     </p>
   );
 }
 
 function OverviewTab({ services }: { services: PortalService[] }) {
+  if (services.length === 0) {
+    return <EmptyNote>Aucun service configuré pour ce client pour l&apos;instant.</EmptyNote>;
+  }
   return (
     <section className="rounded-xl border border-zinc-800/80 bg-zinc-900/20 px-6 py-5">
       <p className="mb-4 text-sm font-medium text-zinc-200">Services F5L</p>
@@ -153,7 +155,10 @@ function OverviewTab({ services }: { services: PortalService[] }) {
 }
 
 function SiteTab({ website }: { website: WebsiteOverview }) {
-  const { project, tasks, source } = website;
+  const { project, tasks } = website;
+  if (!project) {
+    return <EmptyNote>Aucun projet site internet pour ce client pour l&apos;instant.</EmptyNote>;
+  }
   const steps: Array<[string, string]> = [
     ["Contenus", project.contentStatus],
     ["Design", project.designStatus],
@@ -163,7 +168,6 @@ function SiteTab({ website }: { website: WebsiteOverview }) {
 
   return (
     <div className="grid gap-4">
-      <SourceNote source={source} />
       <section className="rounded-xl border border-zinc-800/80 bg-zinc-900/20 px-6 py-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -243,10 +247,17 @@ function AdsTab({ meta, google }: { meta: AdsOverview; google: AdsOverview }) {
 }
 
 function AdsPlatform({ title, data }: { title: string; data: AdsOverview }) {
+  if (data.campaigns.length === 0) {
+    return (
+      <section className="rounded-xl border border-zinc-800/80 bg-zinc-900/20 px-6 py-5">
+        <p className="mb-4 text-sm font-medium text-zinc-200">{title}</p>
+        <EmptyNote>Aucune campagne {title} pour ce client pour l&apos;instant.</EmptyNote>
+      </section>
+    );
+  }
   return (
     <section className="rounded-xl border border-zinc-800/80 bg-zinc-900/20 px-6 py-5">
-      <p className="mb-1 text-sm font-medium text-zinc-200">{title}</p>
-      <SourceNote source={data.source} />
+      <p className="mb-4 text-sm font-medium text-zinc-200">{title}</p>
       <div className="mb-4 grid gap-3 sm:grid-cols-4">
         <Stat label="Budget" value={formatMoneyCents(data.totals.budget)} />
         <Stat label="Dépenses" value={formatMoneyCents(data.totals.spend)} />
@@ -277,9 +288,11 @@ function AdsPlatform({ title, data }: { title: string; data: AdsOverview }) {
 }
 
 function CrmTab({ crm }: { crm: CrmOverview }) {
+  if (crm.stages.length === 0 && crm.leads.length === 0) {
+    return <EmptyNote>Aucune donnée CRM pour ce client pour l&apos;instant.</EmptyNote>;
+  }
   return (
     <div className="grid gap-4">
-      <SourceNote source={crm.source} />
       <section className="rounded-xl border border-zinc-800/80 bg-zinc-900/20 px-6 py-5">
         <p className="mb-4 text-sm font-medium text-zinc-200">Pipeline</p>
         <div className="grid gap-3 md:grid-cols-4">
@@ -322,8 +335,10 @@ function AutomationsTab({
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <section className="rounded-xl border border-zinc-800/80 bg-zinc-900/20 px-6 py-5">
-        <p className="mb-1 text-sm font-medium text-zinc-200">Automatisations</p>
-        <SourceNote source={automations.source} />
+        <p className="mb-4 text-sm font-medium text-zinc-200">Automatisations</p>
+        {automations.automations.length === 0 && (
+          <EmptyNote>Aucune automatisation pour l&apos;instant.</EmptyNote>
+        )}
         <div className="grid gap-2">
           {automations.automations.map((a) => (
             <div key={a.id} className="rounded-lg border border-zinc-800 p-4">
@@ -337,8 +352,10 @@ function AutomationsTab({
         </div>
       </section>
       <section className="rounded-xl border border-zinc-800/80 bg-zinc-900/20 px-6 py-5">
-        <p className="mb-1 text-sm font-medium text-zinc-200">Agents IA</p>
-        <SourceNote source={aiAgents.source} />
+        <p className="mb-4 text-sm font-medium text-zinc-200">Agents IA</p>
+        {aiAgents.agents.length === 0 && (
+          <EmptyNote>Aucun agent IA pour l&apos;instant.</EmptyNote>
+        )}
         <div className="grid gap-2">
           {aiAgents.agents.map((agent) => (
             <div key={agent.id} className="rounded-lg border border-zinc-800 p-4">

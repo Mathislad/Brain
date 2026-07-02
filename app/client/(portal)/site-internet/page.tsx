@@ -8,7 +8,30 @@ export const metadata: Metadata = { title: "Site internet" };
 
 export default async function ClientWebsitePage() {
   const { organization } = await requireClient();
-  const { project, tasks, source } = await getWebsiteOverview(organization.id);
+  const { project, tasks } = await getWebsiteOverview(organization.id);
+
+  if (!project) {
+    return (
+      <div className="grid gap-8">
+        <Header
+          eyebrow="Site internet"
+          title="Suivi du projet site"
+          text="Statut, étapes, URLs et actions attendues pour votre site F5L."
+        />
+        <div className="rounded-lg border border-dashed border-zinc-800 px-6 py-16 text-center">
+          <p className="text-sm text-zinc-500">
+            Votre projet site n&apos;est pas encore démarré. Il apparaîtra ici dès son lancement.
+          </p>
+          <Link
+            href="/client/support"
+            className="mt-5 inline-flex h-10 items-center rounded-lg border border-zinc-700 px-4 text-sm text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
+          >
+            Poser une question
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const steps = [
     ["Contenus", project.contentStatus],
@@ -19,7 +42,7 @@ export default async function ClientWebsitePage() {
 
   return (
     <div className="grid gap-8">
-      <Header eyebrow="Site internet" title="Suivi du projet site" text="Statut, étapes, URLs et actions attendues pour votre site F5L." source={source} />
+      <Header eyebrow="Site internet" title="Suivi du projet site" text="Statut, étapes, URLs et actions attendues pour votre site F5L." />
 
       <section className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -93,13 +116,12 @@ function UrlRow({ label, href }: { label: string; href?: string | null }) {
   );
 }
 
-function Header({ eyebrow, title, text, source }: { eyebrow: string; title: string; text: string; source: "db" | "mock" }) {
+function Header({ eyebrow, title, text }: { eyebrow: string; title: string; text: string }) {
   return (
     <div>
       <p className="text-xs uppercase tracking-widest text-zinc-600">{eyebrow}</p>
       <h1 className="mt-1 text-2xl font-medium tracking-tight text-white">{title}</h1>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">{text}</p>
-      {source === "mock" && <p className="mt-2 text-xs text-cyan-400/80">Données de préparation, en attente de connexion réelle.</p>}
     </div>
   );
 }

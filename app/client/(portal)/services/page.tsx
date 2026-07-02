@@ -32,6 +32,11 @@ export default async function ClientServicesPage() {
         </p>
       </div>
 
+      {services.length === 0 && (
+        <p className="rounded-lg border border-dashed border-zinc-800 px-6 py-12 text-center text-sm text-zinc-600">
+          Vos services apparaîtront ici dès leur mise en place par F5L.
+        </p>
+      )}
       <div className="grid gap-4 md:grid-cols-2">
         {services.map((service) => (
           <article key={service.id} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-5">

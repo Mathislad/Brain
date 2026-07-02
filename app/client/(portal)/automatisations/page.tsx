@@ -17,8 +17,12 @@ export default async function ClientAutomationsPage() {
         <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
           Suivi des automatisations de notification, relance et synchronisation.
         </p>
-        {data.source === "mock" && <p className="mt-2 text-xs text-cyan-400/80">Base prête pour connecter les vrais workflows.</p>}
       </div>
+      {data.automations.length === 0 && (
+        <p className="rounded-lg border border-dashed border-zinc-800 px-6 py-12 text-center text-sm text-zinc-600">
+          Aucune automatisation active pour l&apos;instant.
+        </p>
+      )}
       <div className="grid gap-4 md:grid-cols-2">
         {data.automations.map((automation) => (
           <article key={automation.id} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-5">

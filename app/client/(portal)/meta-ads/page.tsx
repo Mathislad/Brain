@@ -19,7 +19,6 @@ function AdsPage({ title, text, data, cta }: { title: string; text: string; cta:
         <p className="text-xs uppercase tracking-widest text-zinc-600">Acquisition</p>
         <h1 className="mt-1 text-2xl font-medium tracking-tight text-white">{title}</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">{text}</p>
-        {data.source === "mock" && <p className="mt-2 text-xs text-cyan-400/80">Données mockées prêtes pour l&apos;API publicitaire.</p>}
       </div>
       <div className="grid gap-4 sm:grid-cols-4">
         <Stat label="Budget" value={formatMoneyCents(data.totals.budget)} />
@@ -29,6 +28,9 @@ function AdsPage({ title, text, data, cta }: { title: string; text: string; cta:
       </div>
       <section className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-6">
         <h2 className="text-base font-medium text-white">Campagnes</h2>
+        {data.campaigns.length === 0 && (
+          <p className="mt-4 text-sm text-zinc-600">Aucune campagne pour l&apos;instant. Elles apparaîtront ici à leur lancement.</p>
+        )}
         <div className="mt-5 grid gap-3">
           {data.campaigns.map((campaign) => (
             <div key={campaign.id} className="rounded-lg border border-zinc-800 p-4">

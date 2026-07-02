@@ -19,12 +19,16 @@ export default async function ClientAiAgentsPage() {
           <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
             Qualification, support, analyse et actions réalisées par les agents F5L.
           </p>
-          {data.source === "mock" && <p className="mt-2 text-xs text-cyan-400/80">Données de préparation en attente de connexion IA.</p>}
         </div>
         <Link href="/client/support" className="inline-flex h-10 items-center rounded-lg border border-zinc-700 px-4 text-sm text-zinc-300">
           Demander un ajustement
         </Link>
       </div>
+      {data.agents.length === 0 && (
+        <p className="rounded-lg border border-dashed border-zinc-800 px-6 py-12 text-center text-sm text-zinc-600">
+          Aucun agent IA actif pour l&apos;instant.
+        </p>
+      )}
       <div className="grid gap-4 md:grid-cols-2">
         {data.agents.map((agent) => (
           <article key={agent.id} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-5">
@@ -42,6 +46,9 @@ export default async function ClientAiAgentsPage() {
       </div>
       <section className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-6">
         <h2 className="text-base font-medium text-white">Logs récents</h2>
+        {data.logs.length === 0 && (
+          <p className="mt-4 text-sm text-zinc-600">Aucune activité enregistrée pour l&apos;instant.</p>
+        )}
         <div className="mt-5 grid gap-3">
           {data.logs.map((log) => (
             <div key={log.id} className="rounded-lg border border-zinc-800 px-4 py-3">

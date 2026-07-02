@@ -128,14 +128,20 @@ export default async function ClientDashboard() {
 
       <section className="rounded-lg border border-zinc-800/80 bg-zinc-950/60 p-6">
         <h2 className="mb-4 text-base font-medium text-white">Notifications</h2>
-        <div className="grid gap-3">
-          {overview.notifications.map((notification) => (
-            <div key={notification.id} className="rounded-lg border border-zinc-800/70 p-4">
-              <p className="text-sm font-medium text-white">{notification.title}</p>
-              <p className="mt-1 text-xs leading-5 text-zinc-500">{notification.message}</p>
-            </div>
-          ))}
-        </div>
+        {overview.notifications.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-zinc-800 px-5 py-8 text-sm text-zinc-500">
+            Aucune notification pour le moment.
+          </p>
+        ) : (
+          <div className="grid gap-3">
+            {overview.notifications.map((notification) => (
+              <div key={notification.id} className="rounded-lg border border-zinc-800/70 p-4">
+                <p className="text-sm font-medium text-white">{notification.title}</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-500">{notification.message}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

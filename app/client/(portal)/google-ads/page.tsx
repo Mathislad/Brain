@@ -17,7 +17,6 @@ export default async function ClientGoogleAdsPage() {
         <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
           Campagnes Search, clics, conversions, budget et recommandations.
         </p>
-        {data.source === "mock" && <p className="mt-2 text-xs text-cyan-400/80">Données mockées prêtes pour Google Ads API.</p>}
       </div>
       <div className="grid gap-4 sm:grid-cols-4">
         <Stat label="Budget" value={formatMoneyCents(data.totals.budget)} />
@@ -27,6 +26,9 @@ export default async function ClientGoogleAdsPage() {
       </div>
       <section className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-6">
         <h2 className="text-base font-medium text-white">Campagnes</h2>
+        {data.campaigns.length === 0 && (
+          <p className="mt-4 text-sm text-zinc-600">Aucune campagne pour l&apos;instant. Elles apparaîtront ici à leur lancement.</p>
+        )}
         <div className="mt-5 grid gap-3">
           {data.campaigns.map((campaign) => (
             <div key={campaign.id} className="rounded-lg border border-zinc-800 p-4">

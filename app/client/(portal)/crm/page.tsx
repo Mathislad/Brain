@@ -17,7 +17,6 @@ export default async function ClientCrmPage() {
         <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
           Suivi des prospects, sources, statuts et prochaines relances.
         </p>
-        {data.source === "mock" && <p className="mt-2 text-xs text-cyan-400/80">Données de démonstration en attente de connexion CRM.</p>}
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat label="Leads" value={String(data.leads.length)} />
@@ -26,6 +25,9 @@ export default async function ClientCrmPage() {
       </div>
       <section className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-6">
         <h2 className="text-base font-medium text-white">Pipeline</h2>
+        {data.stages.length === 0 && (
+          <p className="mt-4 text-sm text-zinc-600">Votre pipeline sera configuré au lancement du service CRM.</p>
+        )}
         <div className="mt-5 grid gap-3 md:grid-cols-4">
           {data.stages.map((stage) => (
             <div key={stage.id} className="rounded-lg border border-zinc-800 p-4">
@@ -37,6 +39,9 @@ export default async function ClientCrmPage() {
       </section>
       <section className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-6">
         <h2 className="text-base font-medium text-white">Leads récents</h2>
+        {data.leads.length === 0 && (
+          <p className="mt-4 text-sm text-zinc-600">Aucun lead pour l&apos;instant. Ils apparaîtront ici dès les premières demandes.</p>
+        )}
         <div className="mt-5 grid gap-3">
           {data.leads.map((lead) => (
             <div key={lead.id} className="rounded-lg border border-zinc-800 p-4">
