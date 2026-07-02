@@ -18,7 +18,7 @@ export default async function ComptabilitePage() {
     <div className="px-4 py-8 sm:px-8 sm:py-10">
       <div className="mb-8">
         <p className="text-xs uppercase tracking-widest text-zinc-600">
-          Data
+          Administratif
         </p>
         <h1 className="mt-1 text-2xl font-medium tracking-tight text-white">
           Comptabilité

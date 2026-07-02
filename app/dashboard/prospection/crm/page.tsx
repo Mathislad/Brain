@@ -55,7 +55,7 @@ export default async function CrmPage() {
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-widest text-zinc-600">
-            Data
+            Prospection
           </p>
           <h1 className="mt-1 text-2xl font-medium tracking-tight text-white">
             CRM

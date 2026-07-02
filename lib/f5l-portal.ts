@@ -286,6 +286,18 @@ export async function getClientRequests(organizationId: string): Promise<PortalR
   ];
 }
 
+export async function getOrganizationDetail(organizationId: string) {
+  return prisma.organization.findUnique({
+    where: { id: organizationId },
+    include: {
+      prospect: { select: { nom: true, email: true, telephone: true, ville: true } },
+      billing: true,
+      features: true,
+      members: { where: { role: "CLIENT" } },
+    },
+  });
+}
+
 export async function getAdminClientRequests(): Promise<PortalRequest[]> {
   const rows = await prisma.clientRequest.findMany({
     include: { organization: { select: { name: true } } },

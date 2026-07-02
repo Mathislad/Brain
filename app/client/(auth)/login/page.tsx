@@ -58,9 +58,6 @@ export default function ClientLoginPage() {
 
         <h1 className="mb-1 text-base font-medium text-white">Connexion client</h1>
         <p className="mb-6 text-sm text-zinc-500">Accédez à votre espace client.</p>
-        <p className="mb-6 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs leading-5 text-zinc-500">
-          Par sécurité, cette page demande une identification à chaque passage.
-        </p>
 
         <form onSubmit={handleSubmit} className="grid gap-4">
           <label className="grid gap-1.5">
@@ -100,16 +97,17 @@ export default function ClientLoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 grid gap-3">
-          <Link
-            href="/register"
-            className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-700 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
-          >
-            Première inscription
-          </Link>
-          <p className="text-center text-xs leading-5 text-zinc-600">
-            Pour un accès client F5L, utilisez votre invitation ou contactez votre conseiller.
+        <div className="mt-6 rounded-lg border border-zinc-800/60 bg-zinc-950/50 p-4">
+          <p className="text-xs leading-5 text-zinc-500">
+            <span className="block font-medium text-zinc-400">Pas encore de compte ?</span>
+            L&apos;accès client F5L Brain se fait sur invitation. Si vous n&apos;avez pas encore reçu d&apos;invitation, contactez votre conseiller F5L.
           </p>
+          <a
+            href="mailto:contact@f5l-agency.fr"
+            className="mt-3 inline-flex text-xs text-cyan-400/80 transition-colors hover:text-cyan-300"
+          >
+            contact@f5l-agency.fr
+          </a>
         </div>
       </div>
     </main>

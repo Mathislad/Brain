@@ -15,7 +15,7 @@ export default async function AdminClientRequestsPage() {
   return (
     <div className="px-4 py-8 sm:px-8 sm:py-10">
       <div className="mb-8">
-        <p className="text-xs uppercase tracking-widest text-zinc-600">F5L Brain</p>
+        <p className="text-xs uppercase tracking-widest text-zinc-600">Suivi client</p>
         <h1 className="mt-1 text-2xl font-medium tracking-tight text-white">Demandes client</h1>
         <p className="mt-1 text-sm text-zinc-500">
           {requests.length} demande{requests.length !== 1 ? "s" : ""} enregistrée{requests.length !== 1 ? "s" : ""}.

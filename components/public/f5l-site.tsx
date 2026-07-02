@@ -3,8 +3,62 @@ import Link from "next/link";
 
 export const publicNav = [
   { label: "Offres", href: "/offres" },
-  { label: "Système", href: "/systeme" },
+  { label: "À propos", href: "/a-propos" },
   { label: "Contact", href: "/contact" },
+];
+
+export const brainModules = [
+  {
+    title: "Dashboard",
+    text: "Vue d'ensemble de l'activité en temps réel.",
+  },
+  {
+    title: "Leads",
+    text: "Pipeline de prospects, statuts et relances centralisés.",
+  },
+  {
+    title: "Rendez-vous",
+    text: "Agenda, prise de RDV et suivi des échanges clients.",
+  },
+  {
+    title: "Clients",
+    text: "Fiches clients, historique et espace de suivi dédié.",
+  },
+  {
+    title: "Campagnes",
+    text: "Pilotage des publicités Meta et Google depuis un seul endroit.",
+  },
+  {
+    title: "Suivi projet",
+    text: "Avancement, livrables et prochaines étapes visibles par le client.",
+  },
+];
+
+export const brainBenefits = [
+  {
+    title: "Tout centraliser",
+    text: "Un seul outil pour les prospects, les clients, les campagnes et les contenus. Plus rien ne se perd.",
+  },
+  {
+    title: "Gagner du temps",
+    text: "Moins de copier-coller entre les outils. Les informations sont là où il faut, quand il faut.",
+  },
+  {
+    title: "Suivre les résultats",
+    text: "Des indicateurs lisibles à chaque étape pour prendre de meilleures décisions, plus vite.",
+  },
+  {
+    title: "Fluidifier la relation client",
+    text: "Le client suit l'avancement de son projet en temps réel, sans avoir à demander.",
+  },
+];
+
+export const f5lMethod = [
+  { step: "01", title: "Analyse", text: "Audit de la situation actuelle, des objectifs et des priorités." },
+  { step: "02", title: "Mise en place", text: "Construction de l'infrastructure : site, CRM, campagnes, outils." },
+  { step: "03", title: "Acquisition", text: "Lancement des canaux d'acquisition et des systèmes de leads." },
+  { step: "04", title: "Suivi", text: "Reporting régulier, accompagnement et ajustements opérationnels." },
+  { step: "05", title: "Optimisation", text: "Amélioration continue des performances sur chaque levier actif." },
 ];
 
 export const offers = [
@@ -56,12 +110,6 @@ export const systemSteps = [
     title: "Piloter la performance",
     text: "Chaque mois, les actions et priorités sont suivies depuis votre espace F5L Brain.",
   },
-];
-
-export const results = [
-  { value: "1", label: "système central pour site, ads, leads et IA" },
-  { value: "6", label: "modules activables selon votre abonnement" },
-  { value: "24/7", label: "visibilité client via le portail F5L Brain" },
 ];
 
 export function PublicHeader() {
@@ -207,20 +255,20 @@ export function PrimaryCta() {
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-14 sm:px-6 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">
-            Diagnostic F5L
+            Échange gratuit
           </p>
           <h2 className="mt-3 text-3xl font-medium tracking-tight">
-            Construisons votre système d&apos;acquisition.
+            Voyons si F5L Brain peut vous aider.
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
-            Un échange court pour identifier vos priorités : site, publicités, CRM, relances ou IA.
+            Réservez un échange de 30 minutes pour faire le point sur votre situation et identifier les priorités.
           </p>
         </div>
         <Link
           href="/contact"
-          className="inline-flex h-11 items-center justify-center rounded-lg bg-zinc-950 px-5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+          className="inline-flex h-11 shrink-0 items-center justify-center rounded-lg bg-zinc-950 px-5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
         >
-          Demander un rendez-vous
+          Réserver un échange
         </Link>
       </div>
     </section>

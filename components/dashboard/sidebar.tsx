@@ -30,45 +30,50 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    label: "Data",
-    items: [
-      { label: "CRM", href: "/dashboard/prospection/crm" },
-      { label: "Comptabilité", href: "/dashboard/entreprise/comptabilite" },
-      { label: "Prompt", href: "/dashboard/working/prompt" },
-    ],
-  },
-  {
     label: "Organisation",
     items: [
-      { label: "Todo liste", href: "/dashboard/working/todolist" },
       { label: "Agenda", href: "/dashboard/organisation/agenda" },
+      { label: "To Do liste", href: "/dashboard/working/todolist" },
       {
-        label: "Système de réservation",
+        label: "Réservation",
         href: "/dashboard/module/systeme-reservation",
       },
-    ],
-  },
-  {
-    label: "Outils",
-    items: [
-      { label: "Cold Call", href: "/dashboard/prospection/cold-call" },
-      { label: "Réseaux sociaux", href: "/dashboard/prospection/reseaux-sociaux" },
-      { label: "Site internet", href: "/dashboard/working/site-internet" },
       { label: "Lancement", href: "/dashboard/working/lancement" },
     ],
   },
   {
     label: "Administratif",
     items: [
-      { label: "Client", href: "/dashboard/entreprise/client" },
-      { label: "Demandes client", href: "/dashboard/entreprise/demandes" },
       {
         label: "Devis, facture et contrats",
         href: "/dashboard/entreprise/devis-facture",
         activePaths: ["/dashboard/entreprise/contrats"],
       },
-      { label: "Invitations", href: "/dashboard/entreprise/invitations" },
+      { label: "Comptabilité", href: "/dashboard/entreprise/comptabilite" },
+      { label: "Simulateur", href: "/dashboard/entreprise/simulateur" },
     ],
+  },
+  {
+    label: "Prospection",
+    items: [
+      { label: "CRM", href: "/dashboard/prospection/crm" },
+      { label: "Média", href: "/dashboard/prospection/reseaux-sociaux" },
+      { label: "Cold Call", href: "/dashboard/prospection/cold-call" },
+    ],
+  },
+  {
+    label: "Suivi client",
+    items: [
+      { label: "Dashboard", href: "/dashboard/suivi-client" },
+      { label: "Fiche client", href: "/dashboard/entreprise/client" },
+      { label: "Invitations", href: "/dashboard/entreprise/invitations" },
+      { label: "Demandes client", href: "/dashboard/entreprise/demandes" },
+      { label: "Site internet", href: "/dashboard/working/site-internet" },
+    ],
+  },
+  {
+    label: "Bonus",
+    items: [{ label: "Prompt", href: "/dashboard/working/prompt" }],
   },
 ];
 
