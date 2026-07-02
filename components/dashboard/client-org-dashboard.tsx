@@ -7,11 +7,10 @@ import {
   formatMoneyCents,
   serviceLabels,
   statusLabels,
-} from "@/lib/f5l-portal";
+} from "@/lib/f5l-portal-format";
+import type { PortalRequest, PortalService } from "@/lib/f5l-portal-format";
 import { offerLabel } from "@/lib/offers";
 import type {
-  PortalRequest,
-  PortalService,
   getAdsOverview,
   getAiAgentsOverview,
   getAutomationOverview,
