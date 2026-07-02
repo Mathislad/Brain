@@ -4,6 +4,7 @@ import { PublicPageShell } from "@/components/public/f5l-site";
 
 export const metadata: Metadata = {
   title: "Mentions légales",
+  description: "Mentions légales de F5L : éditeur du site, hébergement et informations légales.",
   alternates: { canonical: "/mentions-legales" },
 };
 

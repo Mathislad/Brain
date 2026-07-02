@@ -4,6 +4,7 @@ import { PublicPageShell } from "@/components/public/f5l-site";
 
 export const metadata: Metadata = {
   title: "Confidentialité",
+  description: "Politique de confidentialité de F5L : données collectées, usage et vos droits (RGPD).",
   alternates: { canonical: "/confidentialite" },
 };
 
