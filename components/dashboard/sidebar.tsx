@@ -38,7 +38,6 @@ const navGroups: NavGroup[] = [
         label: "Réservation",
         href: "/dashboard/module/systeme-reservation",
       },
-      { label: "Lancement", href: "/dashboard/working/lancement" },
     ],
   },
   {

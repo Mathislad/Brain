@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 
 import { DeleteAccountButton } from "@/components/dashboard/delete-account-button";
-import { LaunchMusicSettingsPanel } from "@/components/dashboard/launch-music-settings";
 import { UpdateNameForm } from "@/components/dashboard/update-name-form";
 import { getCurrentUser } from "@/lib/session";
 
@@ -39,8 +38,6 @@ export default async function SettingsPage() {
           </div>
         </div>
       </section>
-
-      <LaunchMusicSettingsPanel />
 
       {/* Zone de danger */}
       <section>

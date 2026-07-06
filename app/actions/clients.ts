@@ -15,6 +15,8 @@ import type {
   PaymentInput,
 } from "@/lib/client-types";
 import { requireAdmin } from "@/lib/auth/roles";
+import { DEFAULT_FEATURES } from "@/lib/auth/features";
+import { prisma } from "@/lib/prisma";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
 const WRITE_LIMIT = { limit: 120, windowMs: 60 * 1000 };
@@ -64,4 +66,65 @@ export async function deletePaymentAction(paymentId: string): Promise<void> {
   enforceRateLimit(`client-payment:${user.id}`, WRITE_LIMIT);
   await deletePayment(user.id, paymentId);
   revalidateClientAndAccounting();
+}
+
+// ─── Conversion prospect → fiche client ───────────────────────────────────────
+// Passe le prospect en « Client » et crée (si absente) l'Organisation portail
+// liée. Anti-doublon : réutilise l'Organisation existante. Les services sont
+// seedés plus tard depuis l'offre choisie à l'invitation (flux inchangé).
+export async function createClientFromProspectAction(
+  prospectId: string,
+): Promise<{ organizationId: string }> {
+  const user = await requireAdmin();
+  enforceRateLimit(`client-create:${user.id}`, WRITE_LIMIT);
+
+  const prospect = await prisma.prospect.findFirst({
+    where: { id: prospectId, userId: user.id },
+  });
+  if (!prospect) throw new Error("Prospect introuvable.");
+
+  // Promotion commerciale : un prospect non encore client passe à « Client ».
+  if (prospect.status === "TODO" || prospect.status === "IN_PROGRESS") {
+    await prisma.prospect.update({
+      where: { id: prospect.id },
+      data: { status: "DONE" },
+    });
+  }
+
+  // Anti-doublon : une seule Organisation par prospect (contrainte @unique).
+  let org = await prisma.organization.findFirst({
+    where: { prospectId: prospect.id },
+  });
+
+  if (!org) {
+    org = await prisma.organization.create({
+      data: {
+        name: prospect.entreprise?.trim() || prospect.nom,
+        type: "client",
+        status: "pending",
+        prospectId: prospect.id,
+      },
+    });
+
+    await prisma.organizationFeature.createMany({
+      data: Object.entries(DEFAULT_FEATURES).map(([key, enabled]) => ({
+        organizationId: org!.id,
+        featureKey: key,
+        enabled,
+      })),
+      skipDuplicates: true,
+    });
+
+    await prisma.organizationBilling.upsert({
+      where: { organizationId: org.id },
+      create: { organizationId: org.id, subscriptionStatus: "inactive", isSimulated: true },
+      update: {},
+    });
+  }
+
+  revalidatePath("/dashboard/prospection", "layout");
+  revalidatePath("/dashboard/entreprise/client", "layout");
+  revalidatePath("/dashboard/suivi-client", "layout");
+
+  return { organizationId: org.id };
 }

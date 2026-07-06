@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { StatusBadge, STATUS_LABELS } from "@/components/dashboard/status-badge";
 import { ProspectFormModal } from "@/components/dashboard/prospect-form-modal";
 import { deleteProspectAction } from "@/app/actions/prospects";
+import { createClientFromProspectAction } from "@/app/actions/clients";
 import {
   addDoNotCallAction,
   getDoNotCallListAction,
@@ -18,6 +19,7 @@ const TABS: { id: ProspectStatus; label: string }[] = [
   { id: "TODO", label: "Prospects" },
   { id: "IN_PROGRESS", label: "Rendez-vous" },
   { id: "DONE", label: "Client" },
+  { id: "CLIENT_ACTIF", label: "Client actif" },
 ];
 
 const ALL_NICHES = "__all__";
@@ -126,6 +128,33 @@ function DeleteButton({ id }: { id: string }) {
         <path d="M10 11v6M14 11v6" />
         <path d="M9 6V4h6v2" />
       </svg>
+    </button>
+  );
+}
+
+function ConvertButton({ prospectId }: { prospectId: string }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  function convert() {
+    startTransition(async () => {
+      try {
+        const { organizationId } = await createClientFromProspectAction(prospectId);
+        router.push(`/dashboard/suivi-client/${organizationId}`);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Conversion échouée");
+      }
+    });
+  }
+
+  return (
+    <button
+      onClick={convert}
+      disabled={isPending}
+      title="Créer une fiche client"
+      className="rounded-lg border border-zinc-800 px-2 py-1 text-xs text-zinc-400 transition-colors hover:border-emerald-800 hover:text-emerald-300 disabled:opacity-50"
+    >
+      {isPending ? "…" : "→ Client"}
     </button>
   );
 }
@@ -513,7 +542,10 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
                         </span>
                       </Cell>
                       <Cell>
-                        <div className="flex items-center gap-0.5">
+                        <div className="flex items-center gap-1">
+                          {(p.status === "TODO" || p.status === "IN_PROGRESS") && (
+                            <ConvertButton prospectId={p.id} />
+                          )}
                           <button
                             onClick={() => setEditingProspect(p)}
                             className="rounded p-1 text-zinc-700 transition-colors hover:bg-zinc-800 hover:text-zinc-300"

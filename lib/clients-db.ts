@@ -35,10 +35,10 @@ function clean(value: unknown, maxLength: number): string {
   return value.trim().slice(0, maxLength);
 }
 
-/** Tous les clients (prospects au statut DONE) avec leurs liens et paiements. */
+/** Tous les clients (prospects convertis : Client ou Client actif) avec leurs liens et paiements. */
 export async function getClientsWithLinks(userId: string) {
   return prisma.prospect.findMany({
-    where: { userId, status: "DONE" },
+    where: { userId, status: { in: ["DONE", "CLIENT_ACTIF"] } },
     orderBy: [{ entreprise: "asc" }, { nom: "asc" }],
     include: {
       links: { orderBy: { createdAt: "asc" } },

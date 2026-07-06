@@ -199,18 +199,6 @@ model ContentIdea {
   @@index([userId])
 }
 
-// ─── Lancement — configuration des sessions ──────────────────────────────────
-model LaunchConfig {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-
-  sessions  Json     @default("[]")  // LaunchSession[]
-
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-}
-
 // ─── Agenda — connexion Google Calendar ─────────────────────────────────────
 model GoogleCalendarConnection {
   id           String   @id @default(cuid())
