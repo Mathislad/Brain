@@ -5,115 +5,16 @@ import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 
 import { importFromCsvAction } from "@/app/actions/prospects";
+import {
+  BRAIN_FIELDS,
+  autoDetectMapping,
+  buildProspectRowFromCsv,
+  createCsvColumns,
+  formatCsvColumnOption,
+  type CsvColumn,
+  type ProspectCsvMapping,
+} from "@/lib/prospect-csv-import";
 import type { ProspectFormData } from "@/lib/prospect-types";
-
-// ─── Field mapping config ─────────────────────────────────────────────────────
-
-const BRAIN_FIELDS: {
-  key: keyof ProspectFormData;
-  label: string;
-  aliases: string[];
-}[] = [
-  {
-    key: "nom",
-    label: "Nom / Prénom *",
-    aliases: ["nom", "nom prénom", "nom, prénom", "nom complet", "nom et prénom", "prénom nom", "contact", "name", "full name", "contact name"],
-  },
-  {
-    key: "entreprise",
-    label: "Entreprise",
-    aliases: ["entreprise", "nom de l'entreprise", "nom d'entreprise", "nom entreprise", "société", "raison sociale", "account", "company", "company name", "organization", "organisation", "client"],
-  },
-  {
-    key: "email",
-    label: "Email",
-    aliases: ["email", "e-mail", "adresse mail", "adresse email", "adresse e-mail", "mail", "courriel"],
-  },
-  {
-    key: "telephone",
-    label: "Téléphone",
-    aliases: ["téléphone", "telephone", "téléphone fixe", "numéro de téléphone", "numéro", "phone", "phone number", "mobile", "portable", "tel", "tél"],
-  },
-  {
-    key: "siteInternet",
-    label: "Site internet",
-    aliases: ["site internet", "site web", "site", "website", "url", "web", "lien", "link"],
-  },
-  {
-    key: "instagram",
-    label: "Instagram",
-    aliases: ["instagram", "instagram url", "lien instagram"],
-  },
-  {
-    key: "facebook",
-    label: "Facebook",
-    aliases: ["facebook", "facebook url", "lien facebook", "fb"],
-  },
-  {
-    key: "linkedin",
-    label: "LinkedIn",
-    aliases: ["linkedin", "linkedine", "linkedin url", "lien linkedin"],
-  },
-  {
-    key: "prochaineAction",
-    label: "Prochaine action",
-    aliases: ["prochaine action", "prochain contact", "next action", "next step", "à faire"],
-  },
-  {
-    key: "derniereAction",
-    label: "Dernière action",
-    aliases: ["dernière action", "dernier contact", "last action", "last contact", "dernière interaction"],
-  },
-  {
-    key: "ville",
-    label: "Ville",
-    aliases: ["ville", "city", "localité", "location", "localisation"],
-  },
-  {
-    key: "activite",
-    label: "Activité",
-    aliases: ["activité", "activity", "secteur", "secteur d'activité", "industry", "domaine"],
-  },
-  {
-    key: "note",
-    label: "Notes",
-    aliases: ["note", "notes", "commentaire", "commentaires", "remarque", "remarques", "remarks", "description"],
-  },
-];
-
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .trim()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/['']/g, "'");
-}
-
-function autoDetectMapping(headers: string[]): Record<keyof ProspectFormData, string> {
-  const mapping = {} as Record<keyof ProspectFormData, string>;
-  const used = new Set<string>();
-
-  for (const field of BRAIN_FIELDS) {
-    // 1. Exact match (normalized)
-    let match = headers.find(
-      (h) => !used.has(h) && field.aliases.some((alias) => normalize(alias) === normalize(h)),
-    );
-    // 2. Fallback: header contains the first alias as a substring
-    if (!match) {
-      match = headers.find(
-        (h) => !used.has(h) && normalize(h).includes(normalize(field.aliases[0])),
-      );
-    }
-    if (match) {
-      mapping[field.key] = match;
-      used.add(match);
-    } else {
-      mapping[field.key] = "";
-    }
-  }
-  return mapping;
-}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -127,11 +28,9 @@ export function CsvImportModal({ onClose }: Props) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("upload");
   const [isDragging, setIsDragging] = useState(false);
-  const [headers, setHeaders] = useState<string[]>([]);
-  const [rows, setRows] = useState<Record<string, string>[]>([]);
-  const [mapping, setMapping] = useState<Record<keyof ProspectFormData, string>>(
-    {} as Record<keyof ProspectFormData, string>,
-  );
+  const [columns, setColumns] = useState<CsvColumn[]>([]);
+  const [rows, setRows] = useState<string[][]>([]);
+  const [mapping, setMapping] = useState<ProspectCsvMapping>({} as ProspectCsvMapping);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<{ count: number; error?: string } | null>(null);
@@ -144,20 +43,25 @@ export function CsvImportModal({ onClose }: Props) {
       setParseError("Format non supporté. Utilise un fichier .csv");
       return;
     }
-    Papa.parse<Record<string, string>>(file, {
-      header: true,
-      skipEmptyLines: true,
+    Papa.parse<string[]>(file, {
+      header: false,
+      skipEmptyLines: "greedy",
       complete(result) {
-        if (!result.data.length) {
+        const [headerRow, ...dataRows] = result.data.filter((row) =>
+          row.some((cell) => String(cell ?? "").trim()),
+        );
+
+        if (!headerRow || !dataRows.length) {
           setParseError("Le fichier est vide.");
           return;
         }
-        const hdrs = result.meta.fields ?? [];
-        const detected = autoDetectMapping(hdrs);
-        setHeaders(hdrs);
-        setRows(result.data);
+
+        const csvColumns = createCsvColumns(headerRow.map((cell) => String(cell ?? "")));
+        const detected = autoDetectMapping(csvColumns);
+        setColumns(csvColumns);
+        setRows(dataRows.map((row) => row.map((cell) => String(cell ?? ""))));
         setMapping(detected);
-        setSelected(new Set(result.data.map((_, i) => i)));
+        setSelected(new Set(dataRows.map((_, i) => i)));
         setStep("map");
       },
       error(err) {
@@ -181,15 +85,8 @@ export function CsvImportModal({ onClose }: Props) {
   );
 
   // Build mapped rows for preview/import
-  function buildRow(raw: Record<string, string>): ProspectFormData {
-    const out: ProspectFormData = { nom: "" };
-    for (const field of BRAIN_FIELDS) {
-      const col = mapping[field.key];
-      if (col && raw[col] !== undefined) {
-        (out as Record<string, string | null>)[field.key] = raw[col].trim() || null;
-      }
-    }
-    return out;
+  function buildRow(raw: string[]): ProspectFormData {
+    return buildProspectRowFromCsv(raw, columns, mapping);
   }
 
   function handleImport() {
@@ -299,9 +196,9 @@ export function CsvImportModal({ onClose }: Props) {
                       className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-zinc-600"
                     >
                       <option value="">— ignorer —</option>
-                      {headers.map((h) => (
-                        <option key={h} value={h}>
-                          {h}
+                      {columns.map((column) => (
+                        <option key={column.id} value={column.id}>
+                          {formatCsvColumnOption(column, rows)}
                         </option>
                       ))}
                     </select>
