@@ -47,3 +47,16 @@ export async function removeDoNotCallAction(id: string) {
   revalidatePath("/dashboard/prospection/crm");
   revalidatePath("/dashboard/prospection/cold-call");
 }
+
+// Retire par numéro (utile en session cold call où l'on n'a pas l'id d'entrée).
+export async function removeDoNotCallByPhoneAction(phone: string) {
+  const user = await requireAdmin();
+
+  const normalizedPhone = normalizePhone(phone.trim());
+  if (!normalizedPhone) return;
+
+  await prisma.doNotCall.deleteMany({ where: { userId: user.id, normalizedPhone } });
+
+  revalidatePath("/dashboard/prospection/crm");
+  revalidatePath("/dashboard/prospection/cold-call");
+}

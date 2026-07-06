@@ -21,7 +21,11 @@ const STATUS_OPTIONS: Array<{ id: ProspectStatus; label: string }> = [
 const ALL_STATUSES = "__all__";
 const ALL_NICHES = "__all__";
 
-import { getDoNotCallListAction } from "@/app/actions/do-not-call";
+import {
+  addDoNotCallAction,
+  getDoNotCallListAction,
+  removeDoNotCallByPhoneAction,
+} from "@/app/actions/do-not-call";
 
 function normalizePhone(value: string | null | undefined) {
   const digits = (value ?? "").replace(/\D/g, "");
@@ -199,6 +203,42 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
     });
   }
 
+  function toggleDoNotCall() {
+    if (!currentProspect?.telephone?.trim()) return;
+    const phone = currentProspect.telephone;
+    const normalized = normalizePhone(phone);
+    const wasListed = doNotCallSet.has(normalized);
+
+    // Mise à jour optimiste
+    setDoNotCallSet((current) => {
+      const next = new Set(current);
+      if (wasListed) next.delete(normalized);
+      else next.add(normalized);
+      return next;
+    });
+    setError(null);
+
+    startTransition(async () => {
+      try {
+        if (wasListed) {
+          await removeDoNotCallByPhoneAction(phone);
+        } else {
+          await addDoNotCallAction(phone, currentProspect.entreprise || currentProspect.nom || "");
+        }
+        router.refresh();
+      } catch (e) {
+        // Rollback
+        setDoNotCallSet((current) => {
+          const next = new Set(current);
+          if (wasListed) next.add(normalized);
+          else next.delete(normalized);
+          return next;
+        });
+        setError(e instanceof Error ? e.message : "Impossible de mettre à jour la liste rouge.");
+      }
+    });
+  }
+
   function saveQuickFields() {
     if (!currentProspect) return;
     const previous = {
@@ -348,6 +388,11 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
                       >
                         {prospect.telephone}
                       </a>
+                      {doNotCallSet.has(normalizePhone(prospect.telephone)) && (
+                        <span className="ml-2 rounded-full border border-red-900/50 bg-red-950/20 px-2 py-0.5 text-[11px] font-medium text-red-300">
+                          Liste rouge
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-zinc-400">
                       {STATUS_LABELS[prospect.status]}
@@ -391,6 +436,18 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
                   >
                     Appeler
                   </a>
+                  <button
+                    type="button"
+                    onClick={toggleDoNotCall}
+                    disabled={isPending || !currentProspect.telephone?.trim()}
+                    className={`h-9 rounded-lg border px-3 text-sm font-medium transition-colors disabled:opacity-50 ${
+                      currentIsDoNotCall
+                        ? "border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-950/60"
+                        : "border-zinc-800 text-zinc-400 hover:border-red-800 hover:text-red-300"
+                    }`}
+                  >
+                    {currentIsDoNotCall ? "Retirer de la liste rouge" : "Ne pas rappeler"}
+                  </button>
                 </div>
               </div>
 
