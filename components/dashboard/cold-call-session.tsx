@@ -435,11 +435,6 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
                       >
                         {prospect.telephone}
                       </a>
-                      {doNotCallSet.has(normalizePhone(prospect.telephone)) && (
-                        <span className="ml-2 rounded-full border border-red-900/50 bg-red-950/20 px-2 py-0.5 text-[11px] font-medium text-red-300">
-                          Liste rouge
-                        </span>
-                      )}
                     </td>
                     <td className="px-4 py-3 text-zinc-400">
                       {STATUS_LABELS[prospect.status]}

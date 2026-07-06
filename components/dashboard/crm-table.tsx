@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { StatusBadge, STATUS_LABELS } from "@/components/dashboard/status-badge";
@@ -234,19 +234,6 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
       ? statusFiltered.length
       : statusFiltered.filter((p) => p.activite?.trim() === niche).length;
   const selectedNicheLabel = selectedNiches.join(", ");
-  const doNotCallSet = useMemo(
-    () => new Set(doNotCallEntries.map((e) => e.normalizedPhone)),
-    [doNotCallEntries],
-  );
-  // Doublons : prospects des tables standard dont le numéro est en liste rouge.
-  const redListMatches = useMemo(
-    () =>
-      all.filter((p) => {
-        const n = normalizePhone(p.telephone);
-        return n && doNotCallSet.has(n);
-      }),
-    [all, doNotCallSet],
-  );
   const normalizedPhoneToCheck = normalizePhone(phoneToCheck);
   const checkMatch = normalizedPhoneToCheck
     ? doNotCallEntries.find((e) => e.normalizedPhone === normalizedPhoneToCheck)
@@ -376,13 +363,9 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
                 </span>
               </div>
 
-              {redListMatches.length > 0 && (
-                <div className="mb-3 rounded-lg border border-red-900/40 bg-red-950/20 px-3 py-2 text-xs text-red-300">
-                  {redListMatches.length} prospect{redListMatches.length !== 1 ? "s" : ""} de vos
-                  tables {redListMatches.length !== 1 ? "partagent" : "partage"} un numéro de la
-                  liste rouge (repérés par le badge « Liste rouge » dans le tableau).
-                </div>
-              )}
+              <p className="mb-3 text-xs text-zinc-600">
+                Les prospects dont le numéro est ici sont masqués partout ailleurs dans Brain.
+              </p>
 
               <div className="max-h-64 overflow-y-auto rounded-lg border border-zinc-800/80">
                 {doNotCallEntries.length === 0 ? (
@@ -537,7 +520,6 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
               </thead>
               <tbody className="divide-y divide-zinc-800/40">
                 {filtered.map((p) => {
-                  const isDoNotCall = doNotCallSet.has(normalizePhone(p.telephone));
                   return (
                     <tr
                       key={p.id}
@@ -556,16 +538,9 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
                       <TextCell value={p.activite} />
                       <Cell>
                         {p.telephone ? (
-                          <div className="flex flex-col gap-1">
-                            <a href={`tel:${p.telephone}`} className="text-zinc-400 transition-colors hover:text-white">
-                              {p.telephone}
-                            </a>
-                            {isDoNotCall && (
-                              <span className="w-fit rounded-full border border-red-900/50 bg-red-950/20 px-2 py-0.5 text-[11px] font-medium text-red-300">
-                                Liste rouge
-                              </span>
-                            )}
-                          </div>
+                          <a href={`tel:${p.telephone}`} className="text-zinc-400 transition-colors hover:text-white">
+                            {p.telephone}
+                          </a>
                         ) : (
                           <span className="text-zinc-700">—</span>
                         )}

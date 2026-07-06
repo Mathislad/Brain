@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import { excludeDoNotCall, getDoNotCallPhones } from "@/lib/do-not-call-db";
 import {
   isClientLinkCategory,
   type ClientLinkInput,
@@ -37,28 +38,36 @@ function clean(value: unknown, maxLength: number): string {
 
 /** Tous les clients (prospects convertis : Client ou Client actif) avec leurs liens et paiements. */
 export async function getClientsWithLinks(userId: string) {
-  return prisma.prospect.findMany({
-    where: { userId, status: { in: ["DONE", "CLIENT_ACTIF"] } },
-    orderBy: [{ entreprise: "asc" }, { nom: "asc" }],
-    include: {
-      links: { orderBy: { createdAt: "asc" } },
-      payments: { orderBy: { paidAt: "desc" } },
-      documents: { orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }] },
-    },
-  });
+  const [clients, blocked] = await Promise.all([
+    prisma.prospect.findMany({
+      where: { userId, status: { in: ["DONE", "CLIENT_ACTIF"] } },
+      orderBy: [{ entreprise: "asc" }, { nom: "asc" }],
+      include: {
+        links: { orderBy: { createdAt: "asc" } },
+        payments: { orderBy: { paidAt: "desc" } },
+        documents: { orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }] },
+      },
+    }),
+    getDoNotCallPhones(userId),
+  ]);
+  return excludeDoNotCall(clients, blocked);
 }
 
 /** Tous les prospects avec les informations utilisées par la fiche client. */
 export async function getProspectsWithClientDetails(userId: string) {
-  return prisma.prospect.findMany({
-    where: { userId },
-    orderBy: [{ entreprise: "asc" }, { nom: "asc" }],
-    include: {
-      links: { orderBy: { createdAt: "asc" } },
-      payments: { orderBy: { paidAt: "desc" } },
-      documents: { orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }] },
-    },
-  });
+  const [prospects, blocked] = await Promise.all([
+    prisma.prospect.findMany({
+      where: { userId },
+      orderBy: [{ entreprise: "asc" }, { nom: "asc" }],
+      include: {
+        links: { orderBy: { createdAt: "asc" } },
+        payments: { orderBy: { paidAt: "desc" } },
+        documents: { orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }] },
+      },
+    }),
+    getDoNotCallPhones(userId),
+  ]);
+  return excludeDoNotCall(prospects, blocked);
 }
 
 export async function addClientLink(userId: string, data: ClientLinkInput) {

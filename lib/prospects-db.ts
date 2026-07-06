@@ -2,6 +2,7 @@ import "server-only";
 
 import { ProspectStatus as PrismaProspectStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { excludeDoNotCall, getDoNotCallPhones } from "@/lib/do-not-call-db";
 import type { ProspectFormData, ProspectStatus } from "@/lib/prospect-types";
 
 export type { Prospect } from "@/generated/prisma/client";
@@ -92,10 +93,14 @@ function sanitizeProspectData(data: ProspectFormData): ProspectFormData {
 }
 
 export async function getProspects(userId: string) {
-  return prisma.prospect.findMany({
-    where: { userId },
-    orderBy: [{ recuLe: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
-  });
+  const [prospects, blocked] = await Promise.all([
+    prisma.prospect.findMany({
+      where: { userId },
+      orderBy: [{ recuLe: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+    }),
+    getDoNotCallPhones(userId),
+  ]);
+  return excludeDoNotCall(prospects, blocked);
 }
 
 export async function updateProspectStatus(
