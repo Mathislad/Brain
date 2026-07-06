@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation";
 import { StatusBadge, STATUS_LABELS } from "@/components/dashboard/status-badge";
 import { ProspectFormModal } from "@/components/dashboard/prospect-form-modal";
 import { deleteProspectAction } from "@/app/actions/prospects";
-import { createClientFromProspectAction } from "@/app/actions/clients";
+import {
+  createClientFromProspectAction,
+  revertClientToProspectAction,
+} from "@/app/actions/clients";
 import {
   addDoNotCallAction,
   getDoNotCallListAction,
@@ -155,6 +158,40 @@ function ConvertButton({ prospectId }: { prospectId: string }) {
       className="rounded-lg border border-zinc-800 px-2 py-1 text-xs text-zinc-400 transition-colors hover:border-emerald-800 hover:text-emerald-300 disabled:opacity-50"
     >
       {isPending ? "…" : "→ Client"}
+    </button>
+  );
+}
+
+function RevertButton({ prospectId }: { prospectId: string }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  function revert() {
+    const ok = confirm(
+      "Retirer le statut client ?\n\nLe prospect repasse en « Rendez-vous » dans le CRM. " +
+        "La fiche client et son portail F5L Brain (accès, services, campagnes, documents) " +
+        "seront supprimés définitivement. Les données CRM du prospect (coordonnées, notes, " +
+        "devis/factures) sont conservées.",
+    );
+    if (!ok) return;
+    startTransition(async () => {
+      try {
+        await revertClientToProspectAction(prospectId);
+        router.refresh();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Retour arrière échoué");
+      }
+    });
+  }
+
+  return (
+    <button
+      onClick={revert}
+      disabled={isPending}
+      title="Retirer le statut client (remettre en prospect)"
+      className="rounded-lg border border-zinc-800 px-2 py-1 text-xs text-zinc-400 transition-colors hover:border-amber-800 hover:text-amber-300 disabled:opacity-50"
+    >
+      {isPending ? "…" : "→ Prospect"}
     </button>
   );
 }
@@ -562,6 +599,9 @@ export function CrmTable({ prospects: all }: { prospects: Prospect[] }) {
                         <div className="flex items-center gap-1">
                           {(p.status === "TODO" || p.status === "IN_PROGRESS") && (
                             <ConvertButton prospectId={p.id} />
+                          )}
+                          {(p.status === "DONE" || p.status === "CLIENT_ACTIF") && (
+                            <RevertButton prospectId={p.id} />
                           )}
                           <button
                             onClick={() => setEditingProspect(p)}

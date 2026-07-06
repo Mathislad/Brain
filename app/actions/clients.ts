@@ -128,3 +128,40 @@ export async function createClientFromProspectAction(
 
   return { organizationId: org.id };
 }
+
+// ─── Retour arrière : client → prospect ───────────────────────────────────────
+// Remet le prospect dans le CRM (statut Rendez-vous) et SUPPRIME l'Organisation
+// portail liée (cascade : accès client, services, campagnes, documents...).
+// Le Prospect et ses données CRM (liens, paiements, documents devis/factures)
+// sont conservés. Destructif côté portail : à confirmer côté UI.
+export async function revertClientToProspectAction(
+  prospectId: string,
+): Promise<{ hadPortalAccess: boolean }> {
+  const user = await requireAdmin();
+  enforceRateLimit(`client-revert:${user.id}`, WRITE_LIMIT);
+
+  const prospect = await prisma.prospect.findFirst({
+    where: { id: prospectId, userId: user.id },
+    include: { organization: { include: { members: true } } },
+  });
+  if (!prospect) throw new Error("Prospect introuvable.");
+
+  const hadPortalAccess = (prospect.organization?.members.length ?? 0) > 0;
+
+  // Supprime l'Organisation portail liée (cascade sur toutes ses données).
+  if (prospect.organization) {
+    await prisma.organization.delete({ where: { id: prospect.organization.id } });
+  }
+
+  // Repasse le prospect en « Rendez-vous » (sort des fiches client).
+  await prisma.prospect.update({
+    where: { id: prospect.id },
+    data: { status: "IN_PROGRESS" },
+  });
+
+  revalidatePath("/dashboard/prospection", "layout");
+  revalidatePath("/dashboard/entreprise/client", "layout");
+  revalidatePath("/dashboard/suivi-client", "layout");
+
+  return { hadPortalAccess };
+}
