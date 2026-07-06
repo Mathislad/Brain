@@ -54,3 +54,72 @@ test("column options include position and sample data for disambiguation", () =>
     "2. Email — ex: personal@example.com",
   );
 });
+
+test("auto mapping recognizes Brain fields from a lead-export style CSV", () => {
+  const columns = createCsvColumns([
+    "Entreprise",
+    "Assignation",
+    "Dernière modification",
+    "E-mail",
+    "Lieu",
+    "Texte",
+    "Téléphone",
+    "Website",
+    "État",
+  ]);
+  const row = [
+    "NathVape",
+    "Ainara Dumond",
+    "1 avril 2026 14:58",
+    "nathcycy11@gmail.com",
+    "15 Rue de Chante Barbe, 43200 Yssingeaux, France",
+    "Boutique de CE envoyer le lien par mail",
+    "06 14 57 17 53",
+    "http://nathvape.fr/",
+    "En cours",
+  ];
+
+  const mapping = autoDetectMapping(columns);
+  const prospect = buildProspectRowFromCsv(row, columns, mapping);
+
+  assert.equal(mapping.nom, "0");
+  assert.equal(mapping.entreprise, "0");
+  assert.equal(mapping.derniereAction, "2");
+  assert.equal(mapping.email, "3");
+  assert.equal(mapping.ville, "4");
+  assert.equal(mapping.note, "5");
+  assert.equal(mapping.telephone, "6");
+  assert.equal(mapping.siteInternet, "7");
+  assert.equal(mapping.status, "8");
+
+  assert.equal(prospect.nom, "NathVape");
+  assert.equal(prospect.entreprise, "NathVape");
+  assert.equal(prospect.derniereAction, "1 avril 2026 14:58");
+  assert.equal(prospect.email, "nathcycy11@gmail.com");
+  assert.equal(prospect.ville, "15 Rue de Chante Barbe, 43200 Yssingeaux, France");
+  assert.equal(prospect.note, "Boutique de CE envoyer le lien par mail");
+  assert.equal(prospect.telephone, "06 14 57 17 53");
+  assert.equal(prospect.siteInternet, "http://nathvape.fr/");
+  assert.equal(prospect.status, "IN_PROGRESS");
+});
+
+test("auto mapping recognizes social, location, and niche columns", () => {
+  const columns = createCsvColumns([
+    "Nom contact",
+    "IG",
+    "Page Facebook",
+    "Profil LinkedIn",
+    "Niche",
+    "Localisation",
+    "Réseaux sociaux",
+  ]);
+  const mapping = autoDetectMapping(columns);
+
+  assert.equal(mapping.nom, "0");
+  assert.equal(mapping.instagram, "1");
+  assert.equal(mapping.facebook, "2");
+  assert.equal(mapping.linkedin, "3");
+  assert.equal(mapping.activite, "4");
+  assert.equal(mapping.ville, "5");
+  assert.equal(mapping.note, "6");
+});
