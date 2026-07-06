@@ -131,6 +131,25 @@ export async function deleteProspect(id: string, userId: string) {
   return prisma.prospect.delete({ where: { id, userId } });
 }
 
+// Enregistre une interaction (session cold call) : met à jour les notes de
+// suivi et incrémente le compteur d'interactions.
+export async function logInteraction(
+  id: string,
+  userId: string,
+  patch: { derniereAction?: string | null; prochaineAction?: string | null; note?: string | null },
+) {
+  return prisma.prospect.update({
+    where: { id, userId },
+    data: {
+      derniereAction: patch.derniereAction?.slice(0, 2000) ?? null,
+      prochaineAction: patch.prochaineAction?.slice(0, 2000) ?? null,
+      note: patch.note?.slice(0, 5000) ?? null,
+      interactions: { increment: 1 },
+    },
+    select: { interactions: true },
+  });
+}
+
 export async function deleteProspectsForUser(userId: string) {
   return prisma.prospect.deleteMany({ where: { userId } });
 }

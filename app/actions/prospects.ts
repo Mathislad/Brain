@@ -7,6 +7,7 @@ import {
   createProspect,
   updateProspect,
   deleteProspect,
+  logInteraction,
   isProspectStatus,
 } from "@/lib/prospects-db";
 import type { ProspectFormData, ProspectStatus } from "@/lib/prospect-types";
@@ -65,6 +66,21 @@ export async function updateProspectAction(
   ensureAllowed(rateLimit.ok, rateLimit.retryAfterSeconds);
   await updateProspect(id, user.id, data);
   revalidatePath("/dashboard/prospection", "layout");
+}
+
+export async function logInteractionAction(
+  id: string,
+  patch: { derniereAction?: string | null; prochaineAction?: string | null; note?: string | null },
+): Promise<{ interactions: number }> {
+  const user = await requireAdmin();
+  const rateLimit = checkRateLimit(`prospect-interaction:${user.id}`, {
+    limit: 240,
+    windowMs: 60 * 1000,
+  });
+  ensureAllowed(rateLimit.ok, rateLimit.retryAfterSeconds);
+  const result = await logInteraction(id, user.id, patch);
+  revalidatePath("/dashboard/prospection", "layout");
+  return result;
 }
 
 export async function deleteProspectAction(id: string): Promise<void> {

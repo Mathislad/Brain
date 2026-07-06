@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import {
+  logInteractionAction,
   updateProspectAction,
   updateProspectStatusAction,
 } from "@/app/actions/prospects";
@@ -93,6 +94,7 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
   );
   const [error, setError] = useState<string | null>(null);
   const [doNotCallSet, setDoNotCallSet] = useState<Set<string>>(new Set());
+  const [pendingIndex, setPendingIndex] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -176,6 +178,51 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
     setCurrentIndex(nextIndex);
     setQuickFields(initialQuickFields(sessionProspects[nextIndex] ?? null));
     setError(null);
+  }
+
+  // Changement de prospect : ouvre la fenêtre d'actualisation avant de bouger.
+  function requestNav(index: number) {
+    const clamped = Math.min(Math.max(index, 0), sessionProspects.length - 1);
+    if (clamped === currentIndex) return;
+    setPendingIndex(clamped);
+  }
+
+  // Enregistre l'interaction (incrémente le compteur) puis navigue.
+  function logAndGo() {
+    if (!currentProspect || pendingIndex === null) return;
+    const target = pendingIndex;
+    const patch = {
+      derniereAction: quickFields.derniereAction || null,
+      prochaineAction: quickFields.prochaineAction || null,
+      note: quickFields.note || null,
+    };
+    startTransition(async () => {
+      try {
+        const { interactions } = await logInteractionAction(currentProspect.id, patch);
+        patchLocalProspect(currentProspect.id, { ...patch, interactions });
+        setPendingIndex(null);
+        goTo(target);
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Impossible d'enregistrer l'interaction.");
+      }
+    });
+  }
+
+  function skipAndGo() {
+    if (pendingIndex === null) return;
+    const target = pendingIndex;
+    setPendingIndex(null);
+    goTo(target);
+  }
+
+  function confirmQuit() {
+    if (confirm("Êtes-vous sûr d'avoir terminé votre session ?")) {
+      setSessionIds([]);
+      setCurrentIndex(0);
+      setPendingIndex(null);
+      setError(null);
+    }
   }
 
   function patchLocalProspect(id: string, patch: Partial<Prospect>) {
@@ -421,6 +468,10 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
                   <p className="mt-1 text-sm text-zinc-500">
                     {currentProspect.entreprise || "Entreprise non renseignée"}
                   </p>
+                  <span className="mt-2 inline-flex items-center rounded-full border border-zinc-800 bg-zinc-950/60 px-2.5 py-0.5 text-xs text-zinc-400">
+                    {currentProspect.interactions} interaction
+                    {currentProspect.interactions !== 1 ? "s" : ""}
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -562,7 +613,7 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <button
                   type="button"
-                  onClick={() => goTo(currentIndex - 1)}
+                  onClick={() => requestNav(currentIndex - 1)}
                   disabled={currentIndex === 0}
                   className="h-10 rounded-lg border border-zinc-800 px-4 text-sm text-zinc-300 transition-colors hover:border-zinc-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
@@ -579,7 +630,7 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => goTo(currentIndex + 1)}
+                    onClick={() => requestNav(currentIndex + 1)}
                     disabled={currentIndex >= sessionProspects.length - 1}
                     className="h-10 rounded-lg bg-white px-4 text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
                   >
@@ -596,11 +647,7 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
                 </p>
                 <button
                   type="button"
-                  onClick={() => {
-                    setSessionIds([]);
-                    setCurrentIndex(0);
-                    setError(null);
-                  }}
+                  onClick={confirmQuit}
                   className="text-xs text-zinc-500 underline-offset-4 transition-colors hover:text-white hover:underline"
                 >
                   Quitter
@@ -634,6 +681,105 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
           </section>
         ) : null}
       </div>
+
+      {pendingIndex !== null && currentProspect && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={(e) => e.target === e.currentTarget && setPendingIndex(null)}
+        >
+          <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+            <p className="text-xs uppercase tracking-widest text-zinc-600">
+              Actualiser avant de changer de prospect
+            </p>
+            <h3 className="mt-1 text-lg font-medium text-white">
+              {currentProspect.nom || "Sans nom"}
+            </h3>
+            <p className="mt-0.5 text-sm text-zinc-500">
+              {currentProspect.interactions} interaction
+              {currentProspect.interactions !== 1 ? "s" : ""} enregistrée
+              {currentProspect.interactions !== 1 ? "s" : ""} · l&apos;enregistrement en ajoute une.
+            </p>
+
+            <div className="mt-5 grid gap-3">
+              <label className="space-y-1.5">
+                <span className="block text-xs font-medium uppercase tracking-wider text-zinc-500">
+                  Dernière action
+                </span>
+                <input
+                  value={quickFields.derniereAction}
+                  onChange={(event) =>
+                    setQuickFields((current) => ({ ...current, derniereAction: event.target.value }))
+                  }
+                  className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-zinc-600"
+                  placeholder="Appel effectué, message laissé..."
+                  autoFocus
+                />
+              </label>
+              <label className="space-y-1.5">
+                <span className="block text-xs font-medium uppercase tracking-wider text-zinc-500">
+                  Prochaine action
+                </span>
+                <input
+                  value={quickFields.prochaineAction}
+                  onChange={(event) =>
+                    setQuickFields((current) => ({ ...current, prochaineAction: event.target.value }))
+                  }
+                  className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-zinc-600"
+                  placeholder="Rappeler demain, envoyer un devis..."
+                />
+              </label>
+              <label className="space-y-1.5">
+                <span className="block text-xs font-medium uppercase tracking-wider text-zinc-500">
+                  Note
+                </span>
+                <textarea
+                  value={quickFields.note}
+                  onChange={(event) =>
+                    setQuickFields((current) => ({ ...current, note: event.target.value }))
+                  }
+                  className="min-h-24 w-full resize-y rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-zinc-600"
+                  placeholder="Contexte, objections, infos utiles..."
+                />
+              </label>
+            </div>
+
+            {error && (
+              <p role="alert" className="mt-3 text-sm text-red-400">
+                {error}
+              </p>
+            )}
+
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingIndex(null)}
+                disabled={isPending}
+                className="h-10 rounded-lg px-4 text-sm text-zinc-400 transition-colors hover:text-white disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={skipAndGo}
+                  disabled={isPending}
+                  className="h-10 rounded-lg border border-zinc-800 px-4 text-sm text-zinc-300 transition-colors hover:border-zinc-600 hover:text-white disabled:opacity-50"
+                >
+                  Passer sans enregistrer
+                </button>
+                <button
+                  type="button"
+                  onClick={logAndGo}
+                  disabled={isPending}
+                  className="h-10 rounded-lg bg-white px-4 text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-200 disabled:opacity-50"
+                >
+                  {isPending ? "Enregistrement..." : "Enregistrer et continuer"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingProspect && (
         <ProspectFormModal
