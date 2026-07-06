@@ -27,7 +27,6 @@ export async function addDoNotCallAction(phone: string, note: string) {
   const normalizedPhone = normalizePhone(phone.trim());
   if (!normalizedPhone) return;
 
-
   await prisma.doNotCall.upsert({
     where: { userId_normalizedPhone: { userId: user.id, normalizedPhone } },
     create: { userId: user.id, phone: phone.trim(), normalizedPhone, note: note.trim() || null },
@@ -40,7 +39,6 @@ export async function addDoNotCallAction(phone: string, note: string) {
 
 export async function removeDoNotCallAction(id: string) {
   const user = await requireAdmin();
-
 
   await prisma.doNotCall.deleteMany({ where: { id, userId: user.id } });
 

@@ -7,7 +7,6 @@ import { requireAdmin } from "@/lib/auth/roles";
 export async function getTodosAction() {
   const user = await requireAdmin();
 
-
   return prisma.todoItem.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
@@ -21,7 +20,6 @@ export async function createTodoAction(data: {
   dueDate?: string;
 }) {
   const user = await requireAdmin();
-
 
   await prisma.todoItem.create({
     data: {
@@ -39,7 +37,6 @@ export async function createTodoAction(data: {
 export async function updateTodoStatusAction(id: string, status: string) {
   const user = await requireAdmin();
 
-
   await prisma.todoItem.updateMany({
     where: { id, userId: user.id },
     data: { status },
@@ -50,7 +47,6 @@ export async function updateTodoStatusAction(id: string, status: string) {
 
 export async function deleteTodoAction(id: string) {
   const user = await requireAdmin();
-
 
   await prisma.todoItem.deleteMany({ where: { id, userId: user.id } });
 

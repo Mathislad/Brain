@@ -7,7 +7,6 @@ import { requireAdmin } from "@/lib/auth/roles";
 export async function getContentIdeasAction() {
   const user = await requireAdmin();
 
-
   return prisma.contentIdea.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
@@ -21,7 +20,6 @@ export async function createContentIdeaAction(data: {
   platform: string;
 }) {
   const user = await requireAdmin();
-
 
   const idea = await prisma.contentIdea.create({
     data: {
@@ -51,7 +49,6 @@ export async function updateContentIdeaAction(
 ) {
   const user = await requireAdmin();
 
-
   await prisma.contentIdea.updateMany({
     where: { id, userId: user.id },
     data: {
@@ -69,7 +66,6 @@ export async function updateContentIdeaAction(
 
 export async function deleteContentIdeaAction(id: string) {
   const user = await requireAdmin();
-
 
   await prisma.contentIdea.deleteMany({ where: { id, userId: user.id } });
 
