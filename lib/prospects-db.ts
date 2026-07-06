@@ -52,7 +52,7 @@ export function isProspectStatus(value: unknown): value is ProspectStatus {
   return typeof value === "string" && STATUS_VALUES.has(value);
 }
 
-function sanitizeProspectData(data: ProspectFormData): ProspectFormData {
+export function sanitizeProspectData(data: ProspectFormData): ProspectFormData {
   const raw = data as Record<string, unknown>;
   const sanitized: ProspectFormData = {
     nom: cleanString(raw.nom, 160) ?? "",
@@ -118,9 +118,12 @@ export async function createProspect(
   userId: string,
   data: ProspectFormData,
   provenance = "App",
+  csvImportId?: string | null,
 ) {
   const sanitized = sanitizeProspectData(data);
-  return prisma.prospect.create({ data: { ...sanitized, userId, provenance } });
+  return prisma.prospect.create({
+    data: { ...sanitized, userId, provenance, csvImportId: csvImportId ?? null },
+  });
 }
 
 export async function updateProspect(

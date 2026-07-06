@@ -6,6 +6,7 @@ import {
   buildProspectRowFromCsv,
   createCsvColumns,
   formatCsvColumnOption,
+  hasImportableName,
 } from "../lib/prospect-csv-import.ts";
 
 test("CSV columns keep stable ids even when headers are duplicated or empty", () => {
@@ -79,11 +80,12 @@ test("auto mapping recognizes Brain fields from a lead-export style CSV", () => 
     "En cours",
   ];
 
-  const mapping = autoDetectMapping(columns);
+  const mapping = autoDetectMapping(columns, [row]);
   const prospect = buildProspectRowFromCsv(row, columns, mapping);
 
-  assert.equal(mapping.nom, "0");
+  assert.equal(mapping.nom, "");
   assert.equal(mapping.entreprise, "0");
+  assert.equal(mapping.prochaineAction, "");
   assert.equal(mapping.derniereAction, "2");
   assert.equal(mapping.email, "3");
   assert.equal(mapping.ville, "4");
@@ -91,6 +93,7 @@ test("auto mapping recognizes Brain fields from a lead-export style CSV", () => 
   assert.equal(mapping.telephone, "6");
   assert.equal(mapping.siteInternet, "7");
   assert.equal(mapping.status, "8");
+  assert.equal(hasImportableName(mapping), true);
 
   assert.equal(prospect.nom, "NathVape");
   assert.equal(prospect.entreprise, "NathVape");
@@ -122,4 +125,31 @@ test("auto mapping recognizes social, location, and niche columns", () => {
   assert.equal(mapping.activite, "4");
   assert.equal(mapping.ville, "5");
   assert.equal(mapping.note, "6");
+});
+
+test("auto mapping uses sample values without stealing unrelated columns", () => {
+  const columns = createCsvColumns([
+    "Assignation",
+    "Colonne A",
+    "Colonne B",
+    "Colonne C",
+    "Entreprise",
+  ]);
+  const rows = [[
+    "Ainara Dumond",
+    "contact@example.com",
+    "06 10 20 30 40",
+    "https://example.fr",
+    "Maison Test",
+  ]];
+  const mapping = autoDetectMapping(columns, rows);
+  const prospect = buildProspectRowFromCsv(rows[0], columns, mapping);
+
+  assert.equal(mapping.nom, "");
+  assert.equal(mapping.email, "1");
+  assert.equal(mapping.telephone, "2");
+  assert.equal(mapping.siteInternet, "3");
+  assert.equal(mapping.entreprise, "4");
+  assert.equal(prospect.nom, "Maison Test");
+  assert.equal(prospect.email, "contact@example.com");
 });

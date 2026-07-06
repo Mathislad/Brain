@@ -299,31 +299,148 @@ export function getCsvCell(row: string[], column: CsvColumn | undefined): string
   return typeof value === "string" ? value : "";
 }
 
-export function autoDetectMapping(columns: CsvColumn[]): ProspectCsvMapping {
+function normalizedWords(value: string): string[] {
+  return normalizeCsvHeader(value)
+    .replace(/[^a-z0-9+@.]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function normalizedPhrase(value: string): string {
+  return normalizedWords(value).join(" ");
+}
+
+function aliasScore(header: string, aliases: string[]): number {
+  const normalizedHeader = normalizedPhrase(header);
+  if (!normalizedHeader) return 0;
+
+  let score = 0;
+  for (const alias of aliases) {
+    const normalizedAlias = normalizedPhrase(alias);
+    if (!normalizedAlias) continue;
+
+    if (normalizedHeader === normalizedAlias) {
+      score = Math.max(score, 120);
+    } else if (normalizedHeader.startsWith(`${normalizedAlias} `)) {
+      score = Math.max(score, 94);
+    } else if (normalizedHeader.endsWith(` ${normalizedAlias}`)) {
+      score = Math.max(score, 88);
+    } else if (normalizedAlias.length >= 4 && normalizedHeader.includes(` ${normalizedAlias} `)) {
+      score = Math.max(score, 82);
+    } else if (
+      normalizedAlias.length >= 7 &&
+      (normalizedHeader.includes(normalizedAlias) ||
+        (normalizedHeader.length >= 4 && normalizedAlias.includes(normalizedHeader)))
+    ) {
+      score = Math.max(score, 70);
+    }
+  }
+
+  return score;
+}
+
+function sampleValues(column: CsvColumn, rows: string[][]): string[] {
+  return rows
+    .slice(0, 25)
+    .map((row) => getCsvCell(row, column).trim())
+    .filter(Boolean);
+}
+
+function countMatches(values: string[], predicate: (value: string) => boolean): number {
+  return values.filter(predicate).length;
+}
+
+function looksLikeEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function looksLikePhone(value: string): boolean {
+  const digits = value.replace(/\D/g, "");
+  return digits.length >= 8 && digits.length <= 15;
+}
+
+function looksLikeUrl(value: string): boolean {
+  return /^(https?:\/\/|www\.|[a-z0-9-]+\.[a-z]{2,})(\S*)$/i.test(value.trim());
+}
+
+function looksLikeLocation(value: string): boolean {
+  const normalized = normalizeCsvHeader(value);
+  return /\d{5}/.test(value) || normalized.includes(" france") || normalized.includes(" rue ");
+}
+
+function valueScore(fieldKey: keyof ProspectFormData, values: string[]): number {
+  if (!values.length) return 0;
+
+  const emailMatches = countMatches(values, looksLikeEmail);
+  const phoneMatches = countMatches(values, looksLikePhone);
+  const urlMatches = countMatches(values, looksLikeUrl);
+  const locationMatches = countMatches(values, looksLikeLocation);
+  const statusMatches = countMatches(values, (value) => normalizeCsvStatus(value) != null);
+  const instagramMatches = countMatches(values, (value) =>
+    normalizeCsvHeader(value).includes("instagram") || normalizeCsvHeader(value).includes("insta"),
+  );
+  const facebookMatches = countMatches(values, (value) => normalizeCsvHeader(value).includes("facebook"));
+  const linkedinMatches = countMatches(values, (value) => normalizeCsvHeader(value).includes("linkedin"));
+
+  const ratio = (count: number) => count / values.length;
+
+  switch (fieldKey) {
+    case "email":
+      return ratio(emailMatches) >= 0.5 ? 80 : 0;
+    case "telephone":
+      return ratio(phoneMatches) >= 0.5 ? 80 : 0;
+    case "siteInternet":
+      return ratio(urlMatches) >= 0.5 ? 82 : 0;
+    case "instagram":
+      return instagramMatches > 0 ? 70 : 0;
+    case "facebook":
+      return facebookMatches > 0 ? 70 : 0;
+    case "linkedin":
+      return linkedinMatches > 0 ? 70 : 0;
+    case "ville":
+      return ratio(locationMatches) >= 0.35 ? 52 : 0;
+    case "status":
+      return ratio(statusMatches) >= 0.5 ? 78 : 0;
+    case "nom":
+      return emailMatches || phoneMatches || urlMatches ? -80 : 0;
+    case "entreprise":
+      return emailMatches || phoneMatches ? -80 : 0;
+    default:
+      return 0;
+  }
+}
+
+function detectColumnForField(
+  field: ProspectCsvField,
+  columns: CsvColumn[],
+  rows: string[][],
+  used: Set<string>,
+): CsvColumn | null {
+  let best: { column: CsvColumn; score: number } | null = null;
+
+  for (const column of columns) {
+    if (used.has(column.id)) continue;
+
+    const score =
+      aliasScore(column.header, field.aliases) +
+      valueScore(field.key, sampleValues(column, rows));
+
+    if (!best || score > best.score) {
+      best = { column, score };
+    }
+  }
+
+  return best && best.score >= 70 ? best.column : null;
+}
+
+export function autoDetectMapping(columns: CsvColumn[], rows: string[][] = []): ProspectCsvMapping {
   const mapping = {} as ProspectCsvMapping;
   const used = new Set<string>();
 
   for (const field of BRAIN_FIELDS) {
-    let match = columns.find(
-      (column) =>
-        !used.has(column.id) &&
-        field.aliases.some((alias) => normalizeCsvHeader(alias) === normalizeCsvHeader(column.header)),
-    );
-
-    if (!match) {
-      match = columns.find(
-        (column) =>
-          !used.has(column.id) &&
-          normalizeCsvHeader(column.header).includes(normalizeCsvHeader(field.aliases[0])),
-      );
-    }
-
+    const match = detectColumnForField(field, columns, rows, used);
     mapping[field.key] = match?.id ?? "";
     if (match) used.add(match.id);
-  }
-
-  if (!mapping.nom && mapping.entreprise) {
-    mapping.nom = mapping.entreprise;
   }
 
   return mapping;
@@ -408,7 +525,15 @@ export function buildProspectRowFromCsv(
     }
   }
 
+  if (!out.nom && out.entreprise) {
+    out.nom = out.entreprise;
+  }
+
   return out;
+}
+
+export function hasImportableName(mapping: ProspectCsvMapping): boolean {
+  return Boolean(mapping.nom || mapping.entreprise);
 }
 
 export function formatCsvColumnOption(column: CsvColumn, rows: string[][]): string {

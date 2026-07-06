@@ -52,6 +52,8 @@ model Prospect {
   devisSigne     Boolean    @default(false)
   payments       Payment[]
   todos          TodoItem[]
+  csvImportId    String?
+  csvImport      CsvImportBatch? @relation(fields: [csvImportId], references: [id], onDelete: SetNull)
 
   // Référence externe pour la déduplication lors des imports
   externalId     String?
@@ -69,6 +71,26 @@ model Prospect {
   @@index([userId])
   @@index([userId, status])
   @@index([userId, externalId])
+  @@index([csvImportId])
+}
+
+model CsvImportBatch {
+  id            String    @id @default(cuid())
+  userId        String
+  fileName      String?
+  sourceRowCount Int      @default(0)
+  importedCount Int       @default(0)
+  revertedCount Int       @default(0)
+  status        String    @default("ACTIVE") // ACTIVE | REVERTED
+  mapping       Json?
+  createdAt     DateTime  @default(now())
+  revertedAt    DateTime?
+
+  prospects     Prospect[]
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([createdAt])
 }
 
 model ClientLink {

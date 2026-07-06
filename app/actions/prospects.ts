@@ -9,12 +9,32 @@ import {
   deleteProspect,
   logInteraction,
   isProspectStatus,
+  sanitizeProspectData,
 } from "@/lib/prospects-db";
 import type { ProspectFormData, ProspectStatus } from "@/lib/prospect-types";
 import { requireAdmin } from "@/lib/auth/roles";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { prisma } from "@/lib/prisma";
 
 const MAX_CSV_IMPORT_ROWS = 500;
+
+export type CsvImportHistoryItem = {
+  id: string;
+  fileName: string | null;
+  sourceRowCount: number;
+  importedCount: number;
+  revertedCount: number;
+  status: string;
+  createdAt: Date;
+  revertedAt: Date | null;
+  remainingProspects: number;
+};
+
+type CsvImportMetadata = {
+  fileName?: string;
+  sourceRowCount?: number;
+  mapping?: unknown;
+};
 
 function ensureAllowed(allowed: boolean, retryAfterSeconds: number) {
   if (!allowed) {
@@ -98,6 +118,7 @@ export async function deleteProspectAction(id: string): Promise<void> {
 
 export async function importFromCsvAction(
   rows: ProspectFormData[],
+  metadata: CsvImportMetadata = {},
 ): Promise<{ count: number; error?: string }> {
   const user = await requireAdmin();
 
@@ -130,12 +151,126 @@ export async function importFromCsvAction(
       .filter((row) => row.nom?.trim())
       .slice(0, MAX_CSV_IMPORT_ROWS);
 
-    for (const row of validRows) {
-      await createProspect(user.id, row, "CSV");
+    if (!validRows.length) {
+      return { count: 0, error: "Aucune ligne importable. Vérifie le mapping du nom ou de l'entreprise." };
     }
+
+    await prisma.$transaction(async (tx) => {
+      const batch = await tx.csvImportBatch.create({
+        data: {
+          userId: user.id,
+          fileName: metadata.fileName?.trim().slice(0, 240) || null,
+          sourceRowCount:
+            typeof metadata.sourceRowCount === "number" && metadata.sourceRowCount > 0
+              ? Math.min(Math.floor(metadata.sourceRowCount), 5000)
+              : rows.length,
+          importedCount: validRows.length,
+          mapping: metadata.mapping == null ? undefined : metadata.mapping,
+        },
+        select: { id: true },
+      });
+
+      for (const row of validRows) {
+        await tx.prospect.create({
+          data: {
+            ...sanitizeProspectData(row),
+            userId: user.id,
+            provenance: "CSV",
+            csvImportId: batch.id,
+          },
+        });
+      }
+    });
+
     revalidatePath("/dashboard/prospection", "layout");
     return { count: validRows.length };
   } catch (e) {
     return { count: 0, error: e instanceof Error ? e.message : "Erreur import CSV" };
+  }
+}
+
+export async function getCsvImportHistoryAction(): Promise<CsvImportHistoryItem[]> {
+  const user = await requireAdmin();
+
+  const batches = await prisma.csvImportBatch.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+    include: {
+      _count: {
+        select: { prospects: true },
+      },
+    },
+  });
+
+  return batches.map((batch) => ({
+    id: batch.id,
+    fileName: batch.fileName,
+    sourceRowCount: batch.sourceRowCount,
+    importedCount: batch.importedCount,
+    revertedCount: batch.revertedCount,
+    status: batch.status,
+    createdAt: batch.createdAt,
+    revertedAt: batch.revertedAt,
+    remainingProspects: batch._count.prospects,
+  }));
+}
+
+export async function rollbackCsvImportAction(
+  importId: string,
+): Promise<{ deleted: number; error?: string }> {
+  const user = await requireAdmin();
+
+  try {
+    const rateLimit = checkRateLimit(`prospect-import-rollback:${user.id}`, {
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+    });
+
+    if (!rateLimit.ok) {
+      return {
+        deleted: 0,
+        error: `Trop de rollbacks. Réessayez dans ${rateLimit.retryAfterSeconds} secondes.`,
+      };
+    }
+
+    const batch = await prisma.csvImportBatch.findFirst({
+      where: { id: importId, userId: user.id },
+      select: { id: true, status: true },
+    });
+
+    if (!batch) {
+      return { deleted: 0, error: "Import introuvable." };
+    }
+
+    if (batch.status === "REVERTED") {
+      return { deleted: 0, error: "Cet import a déjà été annulé." };
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const deleted = await tx.prospect.deleteMany({
+        where: { userId: user.id, csvImportId: importId },
+      });
+
+      await tx.csvImportBatch.update({
+        where: { id: importId },
+        data: {
+          status: "REVERTED",
+          revertedAt: new Date(),
+          revertedCount: deleted.count,
+        },
+      });
+
+      return deleted;
+    });
+
+    revalidatePath("/dashboard/prospection", "layout");
+    revalidatePath("/dashboard/working/todolist");
+    return { deleted: result.count };
+  } catch (e) {
+    return {
+      deleted: 0,
+      error: e instanceof Error ? e.message : "Impossible d'annuler cet import.",
+    };
   }
 }

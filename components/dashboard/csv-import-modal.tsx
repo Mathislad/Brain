@@ -11,6 +11,7 @@ import {
   buildProspectRowFromCsv,
   createCsvColumns,
   formatCsvColumnOption,
+  hasImportableName,
   type CsvColumn,
   type ProspectCsvMapping,
 } from "@/lib/prospect-csv-import";
@@ -22,12 +23,14 @@ type Step = "upload" | "map" | "preview";
 
 interface Props {
   onClose: () => void;
+  onImported?: () => void;
 }
 
-export function CsvImportModal({ onClose }: Props) {
+export function CsvImportModal({ onClose, onImported }: Props) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("upload");
   const [isDragging, setIsDragging] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
   const [columns, setColumns] = useState<CsvColumn[]>([]);
   const [rows, setRows] = useState<string[][]>([]);
   const [mapping, setMapping] = useState<ProspectCsvMapping>({} as ProspectCsvMapping);
@@ -39,6 +42,7 @@ export function CsvImportModal({ onClose }: Props) {
 
   function parseFile(file: File) {
     setParseError(null);
+    setFileName(file.name);
     if (!file.name.endsWith(".csv") && file.type !== "text/csv") {
       setParseError("Format non supporté. Utilise un fichier .csv");
       return;
@@ -57,9 +61,10 @@ export function CsvImportModal({ onClose }: Props) {
         }
 
         const csvColumns = createCsvColumns(headerRow.map((cell) => String(cell ?? "")));
-        const detected = autoDetectMapping(csvColumns);
+        const normalizedRows = dataRows.map((row) => row.map((cell) => String(cell ?? "")));
+        const detected = autoDetectMapping(csvColumns, normalizedRows);
         setColumns(csvColumns);
-        setRows(dataRows.map((row) => row.map((cell) => String(cell ?? ""))));
+        setRows(normalizedRows);
         setMapping(detected);
         setSelected(new Set(dataRows.map((_, i) => i)));
         setStep("map");
@@ -91,17 +96,41 @@ export function CsvImportModal({ onClose }: Props) {
 
   function handleImport() {
     const selectedRows = Array.from(selected).map((i) => buildRow(rows[i]));
+    const mappingSummary = Object.fromEntries(
+      BRAIN_FIELDS.map((field) => {
+        const column = columns.find((item) => item.id === mapping[field.key]);
+        return [
+          field.key,
+          column
+            ? {
+                columnIndex: column.index + 1,
+                header: column.header || column.label,
+              }
+            : null,
+        ];
+      }),
+    );
+
     startTransition(async () => {
-      const res = await importFromCsvAction(selectedRows);
+      const res = await importFromCsvAction(selectedRows, {
+        fileName: fileName ?? undefined,
+        sourceRowCount: rows.length,
+        mapping: mappingSummary,
+      });
       setResult(res);
       if (!res.error) {
         router.refresh();
+        onImported?.();
         setTimeout(onClose, 1400);
       }
     });
   }
 
   const allSelected = selected.size === rows.length;
+  const canContinue = hasImportableName(mapping);
+  const previewFields = BRAIN_FIELDS.filter(
+    (field) => mapping[field.key] || (field.key === "nom" && !mapping.nom && mapping.entreprise),
+  );
 
   return (
     <div
@@ -205,9 +234,14 @@ export function CsvImportModal({ onClose }: Props) {
                   </div>
                 ))}
               </div>
-              {!mapping.nom && (
+              {!mapping.nom && !mapping.entreprise && (
                 <p className="mt-4 text-xs text-amber-500">
-                  Le champ « Nom / Prénom » doit être mappé pour continuer.
+                  Le champ « Nom / Prénom » ou « Entreprise » doit être mappé pour continuer.
+                </p>
+              )}
+              {!mapping.nom && mapping.entreprise && (
+                <p className="mt-4 text-xs text-zinc-500">
+                  Aucun nom de contact détecté. Brain utilisera l&apos;entreprise comme nom de prospect.
                 </p>
               )}
             </div>
@@ -236,7 +270,7 @@ export function CsvImportModal({ onClose }: Props) {
                 <thead className="sticky top-0 bg-zinc-950">
                   <tr className="border-b border-zinc-800">
                     <th className="w-10 px-4 py-3" />
-                    {BRAIN_FIELDS.filter((f) => mapping[f.key]).map((f) => (
+                    {previewFields.map((f) => (
                       <th
                         key={f.key}
                         className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500"
@@ -286,7 +320,7 @@ export function CsvImportModal({ onClose }: Props) {
                             className="h-4 w-4 rounded border-zinc-600 accent-white"
                           />
                         </td>
-                        {BRAIN_FIELDS.filter((f) => mapping[f.key]).map((f) => (
+                        {previewFields.map((f) => (
                           <td key={f.key} className="px-4 py-3">
                             <span className="max-w-[140px] truncate text-zinc-300 block" title={(mapped as Record<string, string | null>)[f.key] ?? ""}>
                               {(mapped as Record<string, string | null>)[f.key] || (
@@ -341,7 +375,7 @@ export function CsvImportModal({ onClose }: Props) {
             {step === "map" && (
               <button
                 onClick={() => setStep("preview")}
-                disabled={!mapping.nom}
+                disabled={!canContinue}
                 className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-40"
               >
                 Voir les données →

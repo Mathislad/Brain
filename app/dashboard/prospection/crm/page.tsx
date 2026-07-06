@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { CrmTable } from "@/components/dashboard/crm-table";
 import { CsvImportButton } from "@/components/dashboard/csv-import-button";
+import { getCsvImportHistoryAction, type CsvImportHistoryItem } from "@/app/actions/prospects";
 import { getCurrentUser } from "@/lib/session";
 import { getProspects, type Prospect } from "@/lib/prospects-db";
 
@@ -41,10 +42,14 @@ export default async function CrmPage() {
   if (!user) redirect("/login");
 
   let prospects: Prospect[] = [];
+  let imports: CsvImportHistoryItem[] = [];
   let dbError: string | null = null;
 
   try {
-    prospects = await getProspects(user.id);
+    [prospects, imports] = await Promise.all([
+      getProspects(user.id),
+      getCsvImportHistoryAction(),
+    ]);
   } catch (e) {
     dbError = getDbErrorMessage(e);
   }
@@ -67,7 +72,7 @@ export default async function CrmPage() {
           )}
         </div>
 
-        <CsvImportButton />
+        <CsvImportButton initialImports={imports} />
       </div>
 
       {dbError ? (
