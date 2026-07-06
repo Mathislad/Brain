@@ -9,6 +9,16 @@ export async function getTodosAction() {
 
   return prisma.todoItem.findMany({
     where: { userId: user.id },
+    include: {
+      prospect: {
+        select: {
+          id: true,
+          nom: true,
+          entreprise: true,
+          telephone: true,
+        },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
 }
@@ -18,20 +28,42 @@ export async function createTodoAction(data: {
   context?: string;
   priority: string;
   dueDate?: string;
+  prospectId?: string;
 }) {
   const user = await requireAdmin();
+  const title = data.title.trim();
+  const priority = ["LOW", "MEDIUM", "HIGH"].includes(data.priority)
+    ? data.priority
+    : "MEDIUM";
+
+  if (!title) {
+    throw new Error("Le titre de la tâche est requis.");
+  }
+
+  if (data.prospectId) {
+    const prospect = await prisma.prospect.findFirst({
+      where: { id: data.prospectId, userId: user.id },
+      select: { id: true },
+    });
+
+    if (!prospect) {
+      throw new Error("Prospect introuvable.");
+    }
+  }
 
   await prisma.todoItem.create({
     data: {
       userId: user.id,
-      title: data.title.trim(),
+      prospectId: data.prospectId || null,
+      title,
       context: data.context?.trim() || null,
-      priority: data.priority,
+      priority,
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
     },
   });
 
   revalidatePath("/dashboard/working/todolist");
+  revalidatePath("/dashboard/prospection", "layout");
 }
 
 export async function updateTodoStatusAction(id: string, status: string) {

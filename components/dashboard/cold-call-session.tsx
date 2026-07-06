@@ -1,8 +1,10 @@
 "use client";
 
+import type { FormEvent } from "react";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { createTodoAction } from "@/app/actions/todos";
 import {
   logInteractionAction,
   updateProspectAction,
@@ -41,6 +43,8 @@ type QuickFields = {
   prochaineAction: string;
   note: string;
 };
+
+type TodoPriority = "LOW" | "MEDIUM" | "HIGH";
 
 function TextValue({ label, value }: { label: string; value: string | null }) {
   return (
@@ -92,6 +96,10 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
   const [quickFields, setQuickFields] = useState<QuickFields>(
     initialQuickFields(items[0] ?? null),
   );
+  const [todoTitle, setTodoTitle] = useState("");
+  const [todoPriority, setTodoPriority] = useState<TodoPriority>("MEDIUM");
+  const [todoDueDate, setTodoDueDate] = useState("");
+  const [todoMessage, setTodoMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [doNotCallSet, setDoNotCallSet] = useState<Set<string>>(new Set());
   const [pendingIndex, setPendingIndex] = useState<number | null>(null);
@@ -170,6 +178,7 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
     setSessionIds(ids);
     setCurrentIndex(0);
     setError(null);
+    setTodoMessage(null);
     setQuickFields(initialQuickFields(filtered[0] ?? null));
   }
 
@@ -178,6 +187,7 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
     setCurrentIndex(nextIndex);
     setQuickFields(initialQuickFields(sessionProspects[nextIndex] ?? null));
     setError(null);
+    setTodoMessage(null);
   }
 
   // Changement de prospect : ouvre la fenêtre d'actualisation avant de bouger.
@@ -322,6 +332,48 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
       } catch (e) {
         patchLocalProspect(currentProspect.id, previous);
         setError(e instanceof Error ? e.message : "Impossible d'enregistrer les notes.");
+      }
+    });
+  }
+
+  function createTaskForCurrentProspect(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!currentProspect) return;
+
+    const title = todoTitle.trim();
+    if (!title) {
+      setTodoMessage("Ajoute un titre pour créer la tâche.");
+      return;
+    }
+
+    const context = [
+      currentProspect.nom,
+      currentProspect.entreprise,
+      currentProspect.telephone,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    setError(null);
+    setTodoMessage(null);
+
+    startTransition(async () => {
+      try {
+        await createTodoAction({
+          title,
+          context,
+          priority: todoPriority,
+          dueDate: todoDueDate,
+          prospectId: currentProspect.id,
+        });
+        setTodoTitle("");
+        setTodoPriority("MEDIUM");
+        setTodoDueDate("");
+        setTodoMessage("Tâche créée et assignée à ce prospect.");
+        router.refresh();
+      } catch (e) {
+        setTodoMessage(null);
+        setError(e instanceof Error ? e.message : "Impossible de créer la tâche.");
       }
     });
   }
@@ -547,6 +599,53 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
                   })}
                 </div>
               </div>
+
+              <form
+                onSubmit={createTaskForCurrentProspect}
+                className="border-b border-zinc-800 py-5"
+              >
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+                    Tâche assignée
+                  </p>
+                  <span className="text-xs text-zinc-600">
+                    Liée à {currentProspect.nom || "ce prospect"}
+                  </span>
+                </div>
+                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px_150px_auto]">
+                  <input
+                    value={todoTitle}
+                    onChange={(event) => setTodoTitle(event.target.value)}
+                    className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-zinc-600"
+                    placeholder="Ex: Envoyer le devis après l'appel"
+                  />
+                  <select
+                    value={todoPriority}
+                    onChange={(event) => setTodoPriority(event.target.value as TodoPriority)}
+                    className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white outline-none focus:border-zinc-600"
+                  >
+                    <option value="LOW">Basse</option>
+                    <option value="MEDIUM">Moyenne</option>
+                    <option value="HIGH">Haute</option>
+                  </select>
+                  <input
+                    type="date"
+                    value={todoDueDate}
+                    onChange={(event) => setTodoDueDate(event.target.value)}
+                    className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm text-white outline-none focus:border-zinc-600"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isPending || !todoTitle.trim()}
+                    className="h-10 rounded-lg border border-zinc-700 px-4 text-sm font-medium text-zinc-200 transition-colors hover:border-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Créer
+                  </button>
+                </div>
+                {todoMessage && (
+                  <p className="mt-2 text-xs text-emerald-400">{todoMessage}</p>
+                )}
+              </form>
 
               <div className="grid gap-4 py-5 md:grid-cols-2">
                 <label className="space-y-1.5">

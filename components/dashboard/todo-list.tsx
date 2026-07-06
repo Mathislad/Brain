@@ -20,6 +20,12 @@ interface TodoItem {
   status: TodoStatus;
   priority: TodoPriority;
   dueDate: string;
+  prospect: {
+    id: string;
+    nom: string;
+    entreprise: string | null;
+    telephone: string | null;
+  } | null;
 }
 
 const statusColumns: { id: TodoStatus; label: string }[] = [
@@ -47,6 +53,12 @@ function dbToLocal(db: {
   status: string;
   priority: string;
   dueDate: Date | null;
+  prospect: {
+    id: string;
+    nom: string;
+    entreprise: string | null;
+    telephone: string | null;
+  } | null;
 }): TodoItem {
   return {
     id: db.id,
@@ -55,6 +67,7 @@ function dbToLocal(db: {
     status: db.status as TodoStatus,
     priority: db.priority as TodoPriority,
     dueDate: db.dueDate ? db.dueDate.toISOString().slice(0, 10) : "",
+    prospect: db.prospect,
   };
 }
 
@@ -236,6 +249,12 @@ export function TodoList() {
                           {(todo.context || todo.dueDate) && (
                             <p className="mt-1 text-xs text-zinc-500">
                               {[todo.context, formatDate(todo.dueDate)].filter(Boolean).join(" · ")}
+                            </p>
+                          )}
+                          {todo.prospect && (
+                            <p className="mt-2 text-xs text-zinc-400">
+                              Prospect : {todo.prospect.nom}
+                              {todo.prospect.entreprise ? ` · ${todo.prospect.entreprise}` : ""}
                             </p>
                           )}
                         </div>

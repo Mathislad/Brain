@@ -51,6 +51,7 @@ model Prospect {
   montantTotal   Int?       // en centimes
   devisSigne     Boolean    @default(false)
   payments       Payment[]
+  todos          TodoItem[]
 
   // Référence externe pour la déduplication lors des imports
   externalId     String?
@@ -168,6 +169,7 @@ model DoNotCall {
 model TodoItem {
   id        String   @id @default(cuid())
   userId    String
+  prospectId String?
 
   title     String
   context   String?
@@ -177,8 +179,10 @@ model TodoItem {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  prospect  Prospect? @relation(fields: [prospectId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([prospectId])
   @@index([userId, status])
 }
 
