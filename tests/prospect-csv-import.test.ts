@@ -56,28 +56,28 @@ test("column options include position and sample data for disambiguation", () =>
   );
 });
 
-test("auto mapping recognizes Brain fields from a lead-export style CSV", () => {
+test("auto mapping recognizes Brain fields from the user's prospect CSV", () => {
   const columns = createCsvColumns([
-    "Entreprise",
+    "Entreprise ",
     "Assignation",
-    "Dernière modification",
-    "E-mail",
     "Lieu",
-    "Texte",
+    "E-mail",
     "Téléphone",
     "Website",
     "État",
+    "Dernière modification",
+    "Texte",
   ]);
   const row = [
     "NathVape",
     "Ainara Dumond",
-    "1 avril 2026 14:58",
-    "nathcycy11@gmail.com",
     "15 Rue de Chante Barbe, 43200 Yssingeaux, France",
-    "Boutique de CE envoyer le lien par mail",
+    "nathcycy11@gmail.com",
     "06 14 57 17 53",
     "http://nathvape.fr/",
-    "En cours",
+    "A contacter",
+    "1 avril 2026 14:58",
+    "Couvreur",
   ];
 
   const mapping = autoDetectMapping(columns, [row]);
@@ -85,25 +85,44 @@ test("auto mapping recognizes Brain fields from a lead-export style CSV", () => 
 
   assert.equal(mapping.nom, "");
   assert.equal(mapping.entreprise, "0");
-  assert.equal(mapping.prochaineAction, "");
-  assert.equal(mapping.derniereAction, "2");
+  assert.equal(mapping.ville, "2");
   assert.equal(mapping.email, "3");
-  assert.equal(mapping.ville, "4");
-  assert.equal(mapping.note, "5");
-  assert.equal(mapping.telephone, "6");
-  assert.equal(mapping.siteInternet, "7");
-  assert.equal(mapping.status, "8");
+  assert.equal(mapping.telephone, "4");
+  assert.equal(mapping.siteInternet, "5");
+  assert.equal(mapping.prochaineAction, "6");
+  assert.equal(mapping.status, "");
+  assert.equal(mapping.derniereAction, "7");
+  assert.equal(mapping.activite, "8");
+  assert.equal(mapping.note, "");
   assert.equal(hasImportableName(mapping), true);
 
   assert.equal(prospect.nom, "NathVape");
   assert.equal(prospect.entreprise, "NathVape");
-  assert.equal(prospect.derniereAction, "1 avril 2026 14:58");
-  assert.equal(prospect.email, "nathcycy11@gmail.com");
   assert.equal(prospect.ville, "15 Rue de Chante Barbe, 43200 Yssingeaux, France");
-  assert.equal(prospect.note, "Boutique de CE envoyer le lien par mail");
+  assert.equal(prospect.email, "nathcycy11@gmail.com");
   assert.equal(prospect.telephone, "06 14 57 17 53");
   assert.equal(prospect.siteInternet, "http://nathvape.fr/");
-  assert.equal(prospect.status, "IN_PROGRESS");
+  assert.equal(prospect.prochaineAction, "A contacter");
+  assert.equal(prospect.derniereAction, "1 avril 2026 14:58");
+  assert.equal(prospect.activite, "Couvreur");
+  assert.equal(prospect.status, undefined);
+});
+
+test("text column becomes niche when values are mostly business categories", () => {
+  const columns = createCsvColumns(["Entreprise", "Texte", "État"]);
+  const rows = [
+    ["DUCULTY DAVID COUVREUR", "Couvreur", "A contacter"],
+    ["BTRP Haute-Loire Étanchéité", "Couvreur", "Pas intéresser"],
+    ["Ambiance Peinture", "Peintre en bâtiment", "A contacter"],
+    ["Institut A", "Institut de beauté", "En cours"],
+  ];
+  const mapping = autoDetectMapping(columns, rows);
+
+  assert.equal(mapping.entreprise, "0");
+  assert.equal(mapping.activite, "1");
+  assert.equal(mapping.note, "");
+  assert.equal(mapping.prochaineAction, "2");
+  assert.equal(mapping.status, "");
 });
 
 test("auto mapping recognizes social, location, and niche columns", () => {

@@ -151,6 +151,11 @@ export const BRAIN_FIELDS: ProspectCsvField[] = [
     aliases: [
       "prochaine action",
       "prochain contact",
+      "état",
+      "etat",
+      "état source",
+      "etat source",
+      "statut source",
       "relance",
       "rappel",
       "follow up",
@@ -247,7 +252,6 @@ export const BRAIN_FIELDS: ProspectCsvField[] = [
     aliases: [
       "note",
       "notes",
-      "texte",
       "bio",
       "message",
       "commentaire",
@@ -350,6 +354,11 @@ function countMatches(values: string[], predicate: (value: string) => boolean): 
   return values.filter(predicate).length;
 }
 
+function ratioMatches(values: string[], predicate: (value: string) => boolean): number {
+  if (!values.length) return 0;
+  return countMatches(values, predicate) / values.length;
+}
+
 function looksLikeEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
@@ -368,6 +377,47 @@ function looksLikeLocation(value: string): boolean {
   return /\d{5}/.test(value) || normalized.includes(" france") || normalized.includes(" rue ");
 }
 
+function looksLikeCategory(value: string): boolean {
+  const normalized = normalizeCsvHeader(value);
+  const words = normalizedWords(value);
+  if (!words.length || words.length > 8 || value.length > 90) return false;
+  if (looksLikeEmail(value) || looksLikePhone(value) || looksLikeUrl(value) || looksLikeLocation(value)) {
+    return false;
+  }
+  if (
+    [
+      "envoyer",
+      "rappeler",
+      "rapeller",
+      "rappeller",
+      "appeler",
+      "devis",
+      "mail",
+      "message",
+      "rdv",
+      "rendez vous",
+    ].some((word) => normalized.includes(word))
+  ) {
+    return words.length <= 5;
+  }
+  return true;
+}
+
+function isOperationalHeader(header: string): boolean {
+  const normalized = normalizedPhrase(header);
+  return [
+    "assignation",
+    "assignee",
+    "assigned",
+    "owner",
+    "responsable",
+    "commercial",
+    "agent",
+    "user",
+    "utilisateur",
+  ].includes(normalized);
+}
+
 function valueScore(fieldKey: keyof ProspectFormData, values: string[]): number {
   if (!values.length) return 0;
 
@@ -376,6 +426,7 @@ function valueScore(fieldKey: keyof ProspectFormData, values: string[]): number 
   const urlMatches = countMatches(values, looksLikeUrl);
   const locationMatches = countMatches(values, looksLikeLocation);
   const statusMatches = countMatches(values, (value) => normalizeCsvStatus(value) != null);
+  const categoryMatches = countMatches(values, looksLikeCategory);
   const instagramMatches = countMatches(values, (value) =>
     normalizeCsvHeader(value).includes("instagram") || normalizeCsvHeader(value).includes("insta"),
   );
@@ -399,8 +450,12 @@ function valueScore(fieldKey: keyof ProspectFormData, values: string[]): number 
       return linkedinMatches > 0 ? 70 : 0;
     case "ville":
       return ratio(locationMatches) >= 0.35 ? 52 : 0;
+    case "activite":
+      return ratio(categoryMatches) >= 0.55 ? 86 : 0;
     case "status":
       return ratio(statusMatches) >= 0.5 ? 78 : 0;
+    case "prochaineAction":
+      return ratio(statusMatches) >= 0.5 ? -80 : 0;
     case "nom":
       return emailMatches || phoneMatches || urlMatches ? -80 : 0;
     case "entreprise":
@@ -420,10 +475,27 @@ function detectColumnForField(
 
   for (const column of columns) {
     if (used.has(column.id)) continue;
+    if (
+      isOperationalHeader(column.header) &&
+      !["derniereAction", "prochaineAction"].includes(field.key)
+    ) {
+      continue;
+    }
+
+    const values = sampleValues(column, rows);
+    const headerScore = aliasScore(column.header, field.aliases);
+    if (
+      field.key === "status" &&
+      headerScore > 0 &&
+      values.length > 0 &&
+      ratioMatches(values, (value) => normalizeCsvStatus(value) != null) < 0.5
+    ) {
+      continue;
+    }
 
     const score =
-      aliasScore(column.header, field.aliases) +
-      valueScore(field.key, sampleValues(column, rows));
+      headerScore +
+      valueScore(field.key, values);
 
     if (!best || score > best.score) {
       best = { column, score };
