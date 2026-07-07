@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { createTodoAction } from "@/app/actions/todos";
 import {
+  incrementProspectCallCounterAction,
   logInteractionAction,
   updateProspectAction,
   updateProspectStatusAction,
@@ -45,6 +46,7 @@ type QuickFields = {
 };
 
 type TodoPriority = "LOW" | "MEDIUM" | "HIGH";
+type CallCounter = "answered" | "unanswered";
 
 function TextValue({ label, value }: { label: string; value: string | null }) {
   return (
@@ -256,6 +258,32 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
       } catch (e) {
         patchLocalProspect(currentProspect.id, { status: previousStatus });
         setError(e instanceof Error ? e.message : "Impossible de changer le statut.");
+      }
+    });
+  }
+
+  function recordCall(counter: CallCounter) {
+    if (!currentProspect) return;
+    const previousCounters = {
+      appelsAvecReponse: currentProspect.appelsAvecReponse,
+      appelsSansReponse: currentProspect.appelsSansReponse,
+    };
+    const optimisticPatch =
+      counter === "answered"
+        ? { appelsAvecReponse: (currentProspect.appelsAvecReponse ?? 0) + 1 }
+        : { appelsSansReponse: (currentProspect.appelsSansReponse ?? 0) + 1 };
+
+    patchLocalProspect(currentProspect.id, optimisticPatch);
+    setError(null);
+
+    startTransition(async () => {
+      try {
+        const counters = await incrementProspectCallCounterAction(currentProspect.id, counter);
+        patchLocalProspect(currentProspect.id, counters);
+        router.refresh();
+      } catch (e) {
+        patchLocalProspect(currentProspect.id, previousCounters);
+        setError(e instanceof Error ? e.message : "Impossible d'enregistrer l'appel.");
       }
     });
   }
@@ -515,10 +543,18 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
                   <p className="mt-1 text-sm text-zinc-500">
                     {currentProspect.entreprise || "Entreprise non renseignée"}
                   </p>
-                  <span className="mt-2 inline-flex items-center rounded-full border border-zinc-800 bg-zinc-950/60 px-2.5 py-0.5 text-xs text-zinc-400">
-                    {currentProspect.interactions} interaction
-                    {currentProspect.interactions !== 1 ? "s" : ""}
-                  </span>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className="inline-flex items-center rounded-full border border-zinc-800 bg-zinc-950/60 px-2.5 py-0.5 text-xs text-zinc-400">
+                      {currentProspect.interactions} interaction
+                      {currentProspect.interactions !== 1 ? "s" : ""}
+                    </span>
+                    <span className="inline-flex items-center rounded-full border border-emerald-900/50 bg-emerald-950/30 px-2.5 py-0.5 text-xs text-emerald-300">
+                      Réponse : {currentProspect.appelsAvecReponse ?? 0}
+                    </span>
+                    <span className="inline-flex items-center rounded-full border border-amber-900/50 bg-amber-950/30 px-2.5 py-0.5 text-xs text-amber-300">
+                      Sans réponse : {currentProspect.appelsSansReponse ?? 0}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -534,6 +570,24 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
                   >
                     Appeler
                   </a>
+                  <button
+                    type="button"
+                    onClick={() => recordCall("answered")}
+                    disabled={isPending}
+                    aria-label="Ajouter un appel avec réponse"
+                    className="h-9 rounded-lg border border-emerald-900/50 bg-emerald-950/30 px-3 text-sm font-medium text-emerald-300 transition-colors hover:border-emerald-700 hover:bg-emerald-950/50 disabled:opacity-50"
+                  >
+                    + Réponse
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => recordCall("unanswered")}
+                    disabled={isPending}
+                    aria-label="Ajouter un appel sans réponse"
+                    className="h-9 rounded-lg border border-amber-900/50 bg-amber-950/30 px-3 text-sm font-medium text-amber-300 transition-colors hover:border-amber-700 hover:bg-amber-950/50 disabled:opacity-50"
+                  >
+                    + Sans réponse
+                  </button>
                   <button
                     type="button"
                     onClick={toggleDoNotCall}
@@ -793,6 +847,14 @@ export function ColdCallSession({ prospects }: { prospects: Prospect[] }) {
               {currentProspect.interactions !== 1 ? "s" : ""} enregistrée
               {currentProspect.interactions !== 1 ? "s" : ""} · l&apos;enregistrement en ajoute une.
             </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="inline-flex items-center rounded-full border border-emerald-900/50 bg-emerald-950/30 px-2.5 py-0.5 text-xs text-emerald-300">
+                Réponse : {currentProspect.appelsAvecReponse ?? 0}
+              </span>
+              <span className="inline-flex items-center rounded-full border border-amber-900/50 bg-amber-950/30 px-2.5 py-0.5 text-xs text-amber-300">
+                Sans réponse : {currentProspect.appelsSansReponse ?? 0}
+              </span>
+            </div>
 
             <div className="mt-5 grid gap-3">
               <label className="space-y-1.5">

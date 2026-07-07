@@ -8,9 +8,11 @@ import {
   updateProspect,
   deleteProspect,
   logInteraction,
+  incrementProspectCallCounter,
   isProspectStatus,
   sanitizeProspectData,
 } from "@/lib/prospects-db";
+import type { ProspectCallCounter } from "@/lib/prospects-db";
 import type { ProspectFormData, ProspectStatus } from "@/lib/prospect-types";
 import { requireAdmin } from "@/lib/auth/roles";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -99,6 +101,24 @@ export async function logInteractionAction(
   });
   ensureAllowed(rateLimit.ok, rateLimit.retryAfterSeconds);
   const result = await logInteraction(id, user.id, patch);
+  revalidatePath("/dashboard/prospection", "layout");
+  return result;
+}
+
+export async function incrementProspectCallCounterAction(
+  id: string,
+  counter: ProspectCallCounter,
+): Promise<{ appelsAvecReponse: number; appelsSansReponse: number }> {
+  const user = await requireAdmin();
+  const rateLimit = checkRateLimit(`prospect-call-counter:${user.id}`, {
+    limit: 240,
+    windowMs: 60 * 1000,
+  });
+  ensureAllowed(rateLimit.ok, rateLimit.retryAfterSeconds);
+  if (counter !== "answered" && counter !== "unanswered") {
+    throw new Error("Type d'appel invalide.");
+  }
+  const result = await incrementProspectCallCounter(id, user.id, counter);
   revalidatePath("/dashboard/prospection", "layout");
   return result;
 }

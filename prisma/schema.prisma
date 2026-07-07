@@ -45,6 +45,8 @@ model Prospect {
   derniereAction   String?
   provenance       String?
   interactions     Int        @default(0)  // nb d'échanges loggés (cold call)
+  appelsAvecReponse Int       @default(0)
+  appelsSansReponse Int       @default(0)
 
   // Facturation (client)
   formule        String?

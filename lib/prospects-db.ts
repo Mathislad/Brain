@@ -158,6 +158,23 @@ export async function logInteraction(
   });
 }
 
+export type ProspectCallCounter = "answered" | "unanswered";
+
+export async function incrementProspectCallCounter(
+  id: string,
+  userId: string,
+  counter: ProspectCallCounter,
+) {
+  return prisma.prospect.update({
+    where: { id, userId },
+    data:
+      counter === "answered"
+        ? { appelsAvecReponse: { increment: 1 } }
+        : { appelsSansReponse: { increment: 1 } },
+    select: { appelsAvecReponse: true, appelsSansReponse: true },
+  });
+}
+
 export async function deleteProspectsForUser(userId: string) {
   return prisma.prospect.deleteMany({ where: { userId } });
 }
