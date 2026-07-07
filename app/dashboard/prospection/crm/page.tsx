@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { CrmTable } from "@/components/dashboard/crm-table";
+import { CrmAgentWidget } from "@/components/dashboard/crm-agent-widget";
 import { CsvImportButton } from "@/components/dashboard/csv-import-button";
 import { getCsvImportHistoryAction, type CsvImportHistoryItem } from "@/app/actions/prospects";
 import { getCurrentUser } from "@/lib/session";
@@ -78,7 +79,10 @@ export default async function CrmPage() {
       {dbError ? (
         <DbErrorBanner message={dbError} />
       ) : (
-        <CrmTable prospects={prospects} />
+        <>
+          <CrmTable prospects={prospects} />
+          <CrmAgentWidget />
+        </>
       )}
     </div>
   );
