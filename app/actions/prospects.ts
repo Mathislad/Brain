@@ -155,6 +155,8 @@ export async function importFromCsvAction(
       return { count: 0, error: "Aucune ligne importable. Vérifie le mapping du nom ou de l'entreprise." };
     }
 
+    const sanitizedRows = validRows.map((row) => sanitizeProspectData(row));
+
     await prisma.$transaction(async (tx) => {
       const batch = await tx.csvImportBatch.create({
         data: {
@@ -170,16 +172,14 @@ export async function importFromCsvAction(
         select: { id: true },
       });
 
-      for (const row of validRows) {
-        await tx.prospect.create({
-          data: {
-            ...sanitizeProspectData(row),
+      await tx.prospect.createMany({
+        data: sanitizedRows.map((row) => ({
+          ...row,
             userId: user.id,
             provenance: "CSV",
             csvImportId: batch.id,
-          },
-        });
-      }
+        })),
+      });
     });
 
     revalidatePath("/dashboard/prospection", "layout");
